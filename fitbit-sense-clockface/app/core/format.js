@@ -30,3 +30,11 @@ export function progress(value, goal) {
   const p = value / goal;
   return p < 0 ? 0 : p > 1 ? 1 : p;
 }
+
+/** minutes → "7H 12M"; 0/undefined → "--" */
+export function formatDuration(minutes) {
+  if (!minutes) return PLACEHOLDER;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h ? h + "H " + m + "M" : m + "M";
+}

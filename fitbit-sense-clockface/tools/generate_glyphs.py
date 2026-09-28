@@ -13,8 +13,8 @@ To change the typeface: drop a .ttf/.otf/.woff into tools/fonts/ and point
 the SETS table below at it, then run:   npm run glyphs
 Sizes are in screen px (1 design px = 1 Sense px), same as Figma font size.
 
-Default fonts: Barlow Condensed (time, date) and Barlow Semi Condensed
-(values), both SIL OFL 1.1 — see tools/fonts/*/OFL.txt.
+Default fonts: Barlow Condensed (everything) and Barlow Semi Condensed
+(battery), both SIL OFL 1.1 — see tools/fonts/*/OFL.txt.
 Requires: pip install pillow
 """
 import json
@@ -43,11 +43,12 @@ LOWER = UPPER.lower()
 
 # name → (font file, size px, characters)
 SETS = {
-    "time":     (condensed(600), 136, DIGITS + ":"),
-    "timeAod":  (condensed(300), 120, DIGITS + ":"),
-    "date":     (condensed(600), 26, UPPER + LOWER + DIGITS + " ,./-:"),
+    "time":     (condensed(500), 60, DIGITS + ":"),
+    "timeAod":  (condensed(300), 104, DIGITS + ":"),
+    "date":     (condensed(500), 30, UPPER + LOWER + DIGITS + " ,./-:"),
     "dateAod":  (condensed(400), 24, UPPER + LOWER + DIGITS + " ,./-:"),
-    "value":    (semi(400), 23, DIGITS + ",.- kmi"),
+    "label":    (condensed(500), 17, UPPER + " "),
+    "value":    (condensed(500), 20, DIGITS + ",.- kmiHM"),
     "battery":  (semi(500), 17, DIGITS + "%-"),
 }
 

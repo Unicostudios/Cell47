@@ -15,6 +15,7 @@ export function createNormalMode(face, selection, timeText) {
     const key = dayKey(date);
     if (key !== lastDay) {
       lastDay = key;
+      face.clockText.setDay(formatDate(date, DATE.dayFormat, DATE.uppercase));
       face.clockText.setDate(formatDate(date, DATE.format, DATE.uppercase));
     }
   }
@@ -24,11 +25,12 @@ export function createNormalMode(face, selection, timeText) {
       active = true;
       face.background.setMode(false);
       face.clockText.layoutNormal();
+      face.frame.setVisible(true);
       face.battery.setVisible(true);
-      face.slots.setVisible(true);
+      face.stats.setVisible(true);
       lastDay = -1; // AOD may have written a different date format
       renderClock(date);
-      face.slots.renderAll(selection);
+      face.stats.renderAll(selection);
       startHeartRate();
     },
 
@@ -39,15 +41,20 @@ export function createNormalMode(face, selection, timeText) {
 
     tick: function (date) {
       renderClock(date);
-      face.slots.renderAll(selection); // polled metrics: steps, calories, …
+      face.stats.renderAll(selection); // polled metrics: steps, calories, sleep, …
     },
 
     onHeartRate: function () {
-      if (active) face.slots.renderLive(selection);
+      if (active) face.stats.renderLive(selection);
     },
 
-    onSlotTapped: function (index) {
-      if (active) face.slots.renderOne(index, selection);
+    /** Sleep state changed (rare): refresh rows so SLEEP is current. */
+    onSleep: function () {
+      if (active) face.stats.renderAll(selection);
+    },
+
+    onRowTapped: function (index) {
+      if (active) face.stats.renderOne(index, selection);
     }
   };
 }

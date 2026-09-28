@@ -14,43 +14,65 @@ export const CANVAS = { width: 336, height: 336 };
 // Keep critical content inside this box; the Sense glass has rounded corners.
 export const SAFE_AREA = { left: 24, top: 20, right: 312, bottom: 316 };
 
-// Composition follows the reference photo: centred date over a very large
-// centred time, then a row of three metric columns (side columns: small dim
-// icon + pill progress bar + value; centre column: large heart + value).
+// HUD composition (from the reference photo): four double-line corner
+// brackets frame the face; day / time / date stacked on the left; four stat
+// rows on the right, each with icon + label, value and an outlined bar.
 export const NORMAL = {
   // Battery indicator, top centre. Hidden by default (settings.BATTERY.show)
   // because the reference face has none; enable it there if you want it.
   battery: {
     visible: true,
     // Icon drawn from rectangles (no image needed): outline + nub + level.
-    icon: { x: 133, y: 18, width: 22, height: 11, stroke: 2, nubWidth: 2, nubHeight: 5 },
-    text: { x: 162, y: 30, anchor: "start" }
+    icon: { x: 133, y: 14, width: 22, height: 11, stroke: 2, nubWidth: 2, nubHeight: 5 },
+    text: { x: 162, y: 26, anchor: "start" }
   },
 
-  date: { visible: true, x: 168, y: 56, anchor: "middle" },
-
-  time: { visible: true, x: 168, y: 188, anchor: "middle" },
-
-  // Metric columns. WHAT each column shows is set in settings.js (SLOTS);
-  // here you only decide WHERE and HOW BIG.
-  //   icon.tone: "dim" → COLORS.iconDim, "bright" → COLORS.icon
-  slots: {
+  // Corner brackets. Each corner is two parallel L-shapes ("double line").
+  //   left/top/right/bottom  the outer corner points of the frame
+  //   arm     length of each outer arm; the inner L is shorter by stroke+gap
+  //   stroke  line thickness, gap = space between the two parallel lines
+  frame: {
     visible: true,
-    columns: [
-      { x: 93, icon: { y: 228, size: 22, tone: "dim" } },
-      { x: 168, icon: { y: 222, size: 40, tone: "bright" } },
-      { x: 243, icon: { y: 228, size: 22, tone: "dim" } }
-    ],
-    bar: { y: 263, width: 54, height: 8 }, // pill: ends are rounded
-    value: { y: 302 }, // baseline, centred on the column
-    hit: { y: 214, width: 74, height: 98 } // touch target, centred on column
+    left: 26,
+    top: 40,
+    right: 310,
+    bottom: 296,
+    arm: 36,
+    stroke: 2,
+    gap: 3
+  },
+
+  // Left column: day, time, date — all centred on x.
+  day: { visible: true, x: 88, y: 114, anchor: "middle" },
+  time: { visible: true, x: 88, y: 186, anchor: "middle" },
+  date: { visible: true, x: 88, y: 238, anchor: "middle" },
+
+  // Right column: stat rows. WHAT each row shows is set in settings.js
+  // (STATS); here you only decide WHERE.
+  //   x/width     the row's left edge and total width
+  //   tops        y of each row's top edge (one entry per row)
+  //   icon        size and offset from the row's top-left
+  //   label       baseline offset + gap after the icon
+  //   value       baseline offset; right-aligned to the row's right edge
+  //   bar         outlined box: offset from row top, height, outline stroke,
+  //               inset = space between outline and fill
+  stats: {
+    visible: true,
+    x: 154,
+    width: 146,
+    tops: [60, 116, 172, 228],
+    icon: { size: 14, dy: 4 },
+    label: { dy: 17, gap: 5 },
+    value: { dy: 18 },
+    bar: { dy: 24, height: 14, stroke: 2, inset: 3 },
+    hitHeight: 52 // tap target height per row
   }
 };
 
 export const AOD = {
-  // Same centred composition as NORMAL, without the metric row.
-  date: { visible: true, x: 168, y: 96, anchor: "middle" },
-  time: { visible: true, x: 168, y: 214, anchor: "middle" },
+  // Centred date over time, no frame or stats (fewer lit pixels).
+  date: { visible: true, x: 168, y: 110, anchor: "middle" },
+  time: { visible: true, x: 168, y: 212, anchor: "middle" },
 
   // OLED burn-in protection: the AOD text block moves by these offsets,
   // advancing one step per minute. Set to [[0, 0]] to disable.

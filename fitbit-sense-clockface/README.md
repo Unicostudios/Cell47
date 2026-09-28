@@ -1,10 +1,10 @@
 # Sense Minimal: Fitbit Sense clock face
 
-A monochrome clock face for the **Fitbit Sense** (336 × 336), built on the official Fitbit SDK 6.1. Its composition follows the reference photo: a centred date over a very large centred time in **Barlow Condensed**, with three tappable metric columns underneath. Steps and calories each have a small icon, a pill-shaped goal bar and a value; heart rate in the centre has a larger heart. It's black and white with a soft grey glow low in the centre, and includes a dim, burn-in-safe **Always-On Display** mode.
+A monochrome HUD-style clock face for the **Fitbit Sense** (336 × 336), built on the official Fitbit SDK 6.1. Double-line corner brackets frame the screen. The day, time and date stack on the left; on the right are four stat rows (**calories, heart rate, steps, sleep**), each with an icon, label, value and an outlined progress bar. Everything is set in **Barlow Condensed**, white on black. It includes a dim, burn-in-safe **Always-On Display** mode.
 
 ![Preview: normal, alternate metrics after tapping, AOD, 24h](docs/preview.png)
 
-*Preview rendered by the headless smoke test from the same glyph images the watch uses. The only approximation is the background glow's falloff.*
+*Preview rendered by the headless smoke test from the same glyph images the watch uses: normal, after tapping rows, AOD, and the next evening in 24h mode.*
 
 | Shown | Source (Fitbit API) | Updates |
 |---|---|---|
@@ -12,6 +12,7 @@ A monochrome clock face for the **Fitbit Sense** (336 × 336), built on the offi
 | Date / weekday | `Date` from the clock tick | when the day changes |
 | Steps, calories, distance, floors, AZM + goal bars | `user-activity` `today.adjusted` / `goals` | every minute + on wake |
 | Heart rate | `heart-rate` `HeartRateSensor` + `body-presence` | live, screen-on only |
+| Sleep (last night) | `sleep.state` changes, logged on the watch (see Limitations) | on each change + every minute |
 | Battery % (hidden by default, like the reference) | `power.battery` `change` event | when it changes |
 | AOD | `display.aodAvailable / aodAllowed / aodActive` | minute tick only |
 
@@ -64,6 +65,7 @@ fitbit-sense-clockface/
 │   │   ├── activity.js     #   steps/calories/distance/floors/AZM + goals
 │   │   ├── heartRate.js    #   HR sensor + on-wrist detection
 │   │   ├── battery.js      #   battery level events
+│   │   ├── sleep.js        #   asleep/awake log → minutes slept
 │   │   └── metrics.js      #   ◀ metric registry (id → data, format, icon)
 │   ├── ui/                 # drawing only; never touch sensors
 │   │   ├── dom.js          #   change-guarded setters (no redundant redraws)
@@ -72,19 +74,20 @@ fitbit-sense-clockface/
 │   │   ├── background.js   #   gradient / image / solid
 │   │   ├── clockText.js    #   time + date (normal & AOD placement)
 │   │   ├── battery.js      #   vector battery glyph + %
-│   │   ├── slots.js        #   metric slots: icon, bar, value
+│   │   ├── frame.js        #   double-line corner brackets
+│   │   ├── stats.js        #   stat rows: icon, label, value, outlined bar
 │   │   └── interaction.js  #   tap-to-cycle
 │   ├── modes/
 │   │   ├── controller.js   #   display state machine: NORMAL ⇄ AOD ⇄ OFF
 │   │   ├── normal.js       #   full face behaviour
 │   │   └── aod.js          #   always-on behaviour
-│   └── state/store.js      # remembers the selected slot metrics
+│   └── state/store.js      # remembers which metric each row shows
 ├── resources/              # packaged onto the watch
 │   ├── index.view          # element skeleton (ids + paint order)
 │   ├── styles.css          # fallback styles only
 │   ├── widget.defs
 │   ├── icon.png            # 80×80 app icon (required size)
-│   ├── icons/*.png         # grayscale metric icons, 22×22 (heart 40×40), tintable
+│   ├── icons/*.png         # grayscale 14×14 stat icons, tintable
 │   ├── glyphs/<set>/*.png  # bitmap font: one grayscale PNG per character
 │   └── bg/background.jpg   # optional raster background
 ├── tools/
@@ -151,7 +154,7 @@ Every visual value lives in `app/config/`. For a full Figma workflow, see **[DES
 | Move something | `app/config/layout.js`: x/y/size per element; `NORMAL` and `AOD` are separate |
 | Change colours / fonts / sizes | `app/config/theme.js` |
 | Change what's shown / formats | `app/config/settings.js` |
-| Swap an icon | Replace the file in `resources/icons/` (same name and size: 22×22, heart 40×40, grayscale PNG) |
+| Swap an icon | Replace the file in `resources/icons/` (same name, 14×14 grayscale PNG) |
 | Use a raster background | `theme.js → BACKGROUND.type = "image"` and drop your file at `resources/bg/background.jpg` |
 | Add a new element | Add it to `resources/index.view` with an id, then style/position it in a `ui/` component |
 
@@ -162,10 +165,11 @@ After each change, run `npm run preview` to check quickly, then use `build-and-i
 All colours are defined in one object, `COLORS`, in `app/config/theme.js`:
 
 ```js
-glowInner: "#3A3A3A",   // soft grey glow behind the time
+frame: "#FFFFFF",       // corner brackets
 textPrimary: "#FFFFFF", // time
-progress: "#D6D6D6",    // goal bars
-goalReached: "#FFFFFF", // bars brighten to white at 100%
+barOutline: "#FFFFFF",  // box around each bar
+progress: "#D9D9D9",    // bar fill
+goalReached: "#FFFFFF", // fill brightens to white at 100%
 aodTime: "#9E9E9E",     // keep AOD colours dim
 ```
 
@@ -173,38 +177,42 @@ Use `#RRGGBB`. Don't rely on alpha in hex values; set transparency with the `opa
 
 ## 9. Typography
 
-The time and date are drawn in **Barlow Condensed**, and metric values in **Barlow Semi Condensed**. Fitbit can't load font files, so the face uses a **bitmap font**: every character is pre-rendered as a small grayscale PNG, and `app/ui/label.js` lays the characters out and tints them with the theme colours.
+All text is drawn in **Barlow Condensed**. Fitbit can't load font files, so the face uses a **bitmap font**: every character is pre-rendered as a small grayscale PNG, and `app/ui/label.js` lays the characters out and tints them with the theme colours.
 
-| Style | Weight | Size | Used for |
+| Glyph set | Weight | Size | Used for |
 |---|---|---|---|
-| `time` | Condensed SemiBold 600 | 136 | hero time |
-| `timeAod` | Condensed Light 300 | 120 | AOD time |
-| `date` | Condensed SemiBold 600 | 26 | date |
-| `dateAod` | Condensed Regular 400 | 24 | AOD date |
-| `value` | Semi Condensed Regular 400 | 23 | metric values |
+| `time` | Medium 500 | 60 | time |
+| `date` | Medium 500 | 30 | day ("SAT") and date ("10/11") |
+| `label` | Medium 500 | 17 | stat labels (CALORIES, …) |
+| `value` | Medium 500 | 20 | stat values |
+| `timeAod` | Light 300 | 104 | AOD time |
+| `dateAod` | Regular 400 | 24 | AOD date |
 | `battery` | Semi Condensed Medium 500 | 17 | battery % (hidden by default) |
 
 - **Change sizes, weights or characters:** edit the `SETS` table in `tools/generate_glyphs.py`, then run `npm run glyphs`. That regenerates `resources/glyphs/` and `app/config/glyphs.js`.
 - **Use a different typeface:** put its `.ttf`/`.otf`/`.woff` file in `tools/fonts/`, point `SETS` at it, and run `npm run glyphs`.
 - **Change spacing and colour** (no regeneration needed): edit `letterSpacing` and `fill` in `TYPE` in `theme.js`.
 - **Go back to Fitbit's system font (Raiju):** set `USE_BITMAP_FONT = false` in `theme.js`. The system sizes come from `fontSize` in each `TYPE` style.
-- **Figma:** Barlow Condensed and Barlow Semi Condensed are free Google Fonts, so the Figma file can use the exact same fonts as the watch.
+- **Figma:** Barlow Condensed is a free Google Font, so the Figma file can use the exact same font as the watch.
 
 ## 10. Add or remove metrics
 
-The bottom slots are configured in `app/config/settings.js`:
+The four stat rows are configured in `app/config/settings.js`:
 
 ```js
-export const SLOTS = [
-  ["steps", "distance", "floors"], // tap cycles through these
-  ["heartRate"],                    // single metric → tap does nothing
-  ["calories", "azm"]
+export const STATS = [
+  ["calories", "azm"],               // tap cycles through these
+  ["heartRate"],                      // single metric → tap does nothing
+  ["steps", "distance", "floors"],
+  ["sleep"]
 ];
 ```
 
-- **Remove a metric:** delete its id from the list.
-- **Use fewer slots:** use 1–3 lists, and set matching `layout.js → NORMAL.slots.centers`.
-- **Add a new metric type:** add an entry to `app/data/metrics.js` with `icon`, `value()`, an optional `goal()` and `format()`. Add its icon to `resources/icons/`, then reference its id in `SLOTS`. If the metric needs a new permission, add it to `package.json → fitbit.requestedPermissions`.
+- **Change a row:** swap its ids. Available: `calories`, `heartRate`, `steps`, `sleep`, `azm`, `distance`, `floors`.
+- **Use fewer rows:** remove lists (1–4 rows), and trim `layout.js → NORMAL.stats.tops` to match.
+- **Add a new metric type:** add an entry to `app/data/metrics.js` with `label`, `icon`, `value()`, `progress()` and `format()`. Add its icon to `resources/icons/`, then reference its id in `STATS`. The label's letters must exist in the `label` glyph set. If the metric needs a new permission, add it to `package.json → fitbit.requestedPermissions`.
+- **Sleep goal:** `settings.js → SLEEP.goalMinutes` (default 480 = 8 h) sets how full the sleep bar gets.
+- **Date order:** `settings.js → DATE.format` is `"D/M"` (10/11 = 10 November). Use `"M/D"` for US order.
 - **Show the battery:** set `settings.js → BATTERY.show = true`. It's off by default, because the reference has none.
 
 ## 11. Debugging common problems
@@ -214,7 +222,8 @@ export const SLOTS = [
 | `npm install` fails on `keytar` / `libsecret-1` | Linux: install `libsecret-1-dev`, then reinstall. Only the CLI needs it; `npm install --ignore-scripts` still lets `npm run build` work. |
 | `npx fitbit` crashes with `MODULE_NOT_FOUND … @openid/appauth/built/…` | The CLI's login library published an incompatible 1.4. `package.json → overrides` pins it to 1.3.2. Delete `node_modules` and `package-lock.json`, then run `npm install` again. |
 | `Missing element #xyz in resources/index.view` | An id was renamed or removed in `index.view` but is still used in `app/ui/`. Keep ids in sync. |
-| `Unknown metric id in settings.SLOTS` | A typo in `SLOTS`, or the id is missing from `data/metrics.js`. |
+| `Unknown metric id in settings.STATS` | A typo in `STATS`, or the id is missing from `data/metrics.js`. |
+| SLEEP shows `--` | No sleep recorded yet. It only counts sleep while this face is active; see Limitations. |
 | Values show `--` | The permission is not granted. Re-grant it in **Fitbit app → clock face → Permissions**. HR also shows `--` when the watch is off-wrist. |
 | A character is missing or shows a gap | It isn't in that glyph set. Add it to `SETS` in `tools/generate_glyphs.py` and run `npm run glyphs`. The `fitbit$ logs` output names the missing glyph. |
 | Icon appears as a solid square | The PNG is RGB/RGBA, not **grayscale**. Re-export it as 8-bit grayscale (white = visible). |
@@ -235,6 +244,7 @@ These were checked against the SDK 6.1 toolchain source and API surface. Nothing
 2. **Custom fonts can't be loaded.** Fitbit only has its system fonts. This face works around that with a bitmap font (pre-rendered PNG glyphs), which is why Barlow works. The catch: sizes are fixed when the glyphs are generated, and there's no kerning, only per-character advance widths.
 3. **Activity data has no change event.** `user-activity` can only be polled. The face reads it once a minute and on wake, instead of every second.
 4. **No settings page yet.** A phone-side settings UI (colour pickers and similar) needs a companion + settings component plus messaging, which is a meaningful memory and complexity cost. The values are compile-time config for now. The architecture leaves room to add one later: `settings.js` values would be overridden at runtime.
-5. **Rounded rectangles aren't available.** Fitbit `<rect>` has no corner radius. Progress bars are square-ended, which reads fine at 4 px. For pill ends, use a PNG.
+5. **Rounded rectangles and stroked outlines aren't available.** Fitbit `<rect>` has no corner radius or stroke-only mode, so the bar boxes and corner brackets are built from thin filled rects.
 6. **Simulator OS support.** The simulator is Windows/macOS only. On Linux, use `npm run preview` plus a real watch.
 7. **English day/month names.** The JS engine has no `Intl`. Names live in `app/core/time.js` and can be translated in place.
+8. **Sleep is an on-watch estimate.** The device SDK only exposes the current sleep *state* (`asleep` / `awake`), not your sleep log. The Fitbit app's sleep time and stages live in Fitbit's cloud, reachable only through the Web API from a phone companion with OAuth (a Fitbit developer app registration, and the phone nearby). So `data/sleep.js` records each asleep→awake period while this face is running (screen off included), saves it on the watch, and shows the total over the last 20 hours. It won't count time spent in another app or across a watch restart, and it can differ from the Fitbit app's number. The closest exact alternative is a companion that pulls sleep from the Web API; the architecture supports adding one.

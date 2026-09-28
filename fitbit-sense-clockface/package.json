@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "UNLICENSED",
-  "description": "Minimal premium clock face for Fitbit Sense (336x336).",
+  "description": "HUD-style clock face for Fitbit Sense (336x336).",
   "scripts": {
     "build": "fitbit-build",
     "debug": "fitbit",
@@ -26,7 +26,8 @@
     "wipeColor": "",
     "requestedPermissions": [
       "access_activity",
-      "access_heart_rate"
+      "access_heart_rate",
+      "access_sleep"
     ],
     "buildTargets": [
       "vulcan"

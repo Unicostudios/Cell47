@@ -40,7 +40,7 @@ Defined in `app/config/layout.js → SAFE_AREA`:
 
 - **Hard safe box:** x 24–312, y 20–316. Nothing important should go outside it.
 - **Corners:** keep text out of a ~48 px square in each corner. Icons may sit closer, but test on the watch.
-- **Touch targets:** at least **44 × 44 px**. Current slot hit areas are 96 × 102.
+- **Touch targets:** at least **44 × 44 px**. Current stat-row hit areas are 146 × 52.
 
 ## 3. Coordinate system
 
@@ -62,7 +62,7 @@ In `layout.js`, that becomes `time: { x: 28, y: 196, anchor: "start" }` (116 + 1
 |---|---|---|
 | Solid rectangles | ✅ | `<rect>` (no corner radius) |
 | Circles, arcs, rings | ✅ | `<circle>`, `<arc>` (arc-width, start/sweep angle) |
-| Linear / radial gradient | ✅ | `<gradientRect>`, 2–4 colours, e.g. the current background glow |
+| Linear / radial gradient | ✅ | `<gradientRect>`, 2–4 colours (`BACKGROUND.type = "gradient"`) |
 | Lines | ✅ | `<line>` |
 | Text in system fonts | ✅ | `<text>` |
 | PNG / JPEG images | ✅ | `<image>` |
@@ -88,7 +88,7 @@ In `layout.js`, that becomes `time: { x: 28, y: 196, anchor: "start" }` (116 + 1
 
 | Asset | Size | File |
 |---|---|---|
-| Metric icons | 22 × 22 (heart: 40 × 40) | `resources/icons/<name>.png` |
+| Stat icons | 14 × 14 | `resources/icons/<name>.png` |
 | App icon | 80 × 80 | `resources/icon.png` |
 | Full background | 336 × 336 | `resources/bg/background.jpg` |
 | Font glyphs | generated, one per character | `resources/glyphs/<set>/<charCode>.png` (via `npm run glyphs`) |
@@ -100,13 +100,13 @@ Export at **1×**. Fitbit doesn't scale for density, and the image draws at the 
 The Sense gives each app a limited amount of memory, and images are decoded into RAM:
 
 - A full-screen 336×336 JPEG takes ~220 KB. That's fine for one image, but **avoid layering several**.
-- A 22×22 grayscale icon takes ~0.5 KB, so icons are practically free.
+- A 14×14 grayscale icon takes ~0.2 KB, so icons are practically free.
 - Prefer the vector gradient (`BACKGROUND.type = "gradient"`) over a raster background.
 
 ### Replacing an asset (step by step)
 
 1. In Figma, select the icon layer and use **Flatten**, so it's a single shape, white on transparent.
-2. Export as **PNG, 1×**, at exactly the icon's size (**22 × 22**, or **40 × 40** for the heart).
+2. Export as **PNG, 1×**, at exactly **14 × 14**.
 3. Convert it to grayscale with white on black. In Figma, put it on a black frame of the same size and export the frame. Or use ImageMagick:
    `magick in.png -background black -alpha remove -colorspace Gray -depth 8 out.png`
 4. Save it over the existing file, e.g. `resources/icons/steps.png`, keeping the same name.
@@ -116,15 +116,16 @@ To use a **new** filename, update the `icon:` path in `app/data/metrics.js`.
 
 ## 6. Typography
 
-The face uses **Barlow Condensed** (time, date) and **Barlow Semi Condensed** (values), both free Google Fonts, as a **bitmap font**. `tools/generate_glyphs.py` renders each character to a grayscale PNG, and `app/ui/label.js` lays them out on the watch. In Figma, install both and design with the real fonts; what you see is what the watch shows.
+The face uses **Barlow Condensed**, a free Google Font, as a **bitmap font**. `tools/generate_glyphs.py` renders each character to a grayscale PNG, and `app/ui/label.js` lays them out on the watch. In Figma, install it and design with the real font; what you see is what the watch shows.
 
 **Current type scale (px = Figma font size):**
 
 | Role | Figma style | Glyph set |
 |---|---|---|
-| Hero time | Barlow Condensed SemiBold 136, centred | `time` |
-| Date | Barlow Condensed SemiBold 26, +1 letter-spacing, uppercase, centred | `date` |
-| Metric value | Barlow Semi Condensed Regular 23 | `value` |
+| Time | Barlow Condensed Medium 60, centred in the left column | `time` |
+| Day / date | Barlow Condensed Medium 30, +1 letter-spacing, uppercase | `date` |
+| Stat label | Barlow Condensed Medium 17, +1 letter-spacing, uppercase | `label` |
+| Stat value | Barlow Condensed Medium 20, right-aligned | `value` |
 | Battery % (hidden) | Barlow Semi Condensed Medium 17 | `battery` |
 | AOD time | Barlow Condensed Light 120 | `timeAod` |
 | AOD date | Barlow Condensed Regular 24 | `dateAod` |
@@ -142,7 +143,7 @@ The face uses **Barlow Condensed** (time, date) and **Barlow Semi Condensed** (v
 - Only characters listed in the set exist. The `value` set, for example, has digits, `, . -` and the letters `k m i`. Add any others you need.
 - Sizes are fixed when generated. Every size or weight is its own set.
 - There's no kerning. Glyphs use their advance widths, so tight display pairs may need a small `letterSpacing` tweak.
-- Each glyph slot is an `<image>` element. Labels have a fixed number of slots: time 5, date 12, values 8, battery 4. Longer strings are cut off with a log warning.
+- Each glyph slot is an `<image>` element. Labels have a fixed number of slots: time 5, day/date 12, stat labels 10, stat values 8, battery 4. Longer strings are cut off with a log warning.
 - Memory is negligible, since a 120 px digit is ~5 KB as an 8-bit mask.
 
 **Fitbit system fonts** (fallback, set `USE_BITMAP_FONT = false`): `System-Light`, `System-Regular` and `System-Bold`, rendered in Raiju. They're available as `<text>` at any size, but Raiju isn't distributed for desktop design tools.
@@ -151,20 +152,21 @@ The face uses **Barlow Condensed** (time, date) and **Barlow Semi Condensed** (v
 
 | Figma layer | Position/size | Style | Content |
 |---|---|---|---|
-| Background | — | `theme.js → BACKGROUND`, `COLORS.glow*` | — |
-| Time | `layout.js → NORMAL.time` | `TYPE.time` | `settings.js → TIME` |
-| Date | `NORMAL.date` | `TYPE.date` | `settings.js → DATE.format` |
-| Battery glyph + % | `NORMAL.battery` | `COLORS.battery*`, `TYPE.battery` | `settings.js → BATTERY` |
-| Metric icons | `NORMAL.slots.icon` | `COLORS.icon` | `data/metrics.js → icon` |
-| Progress bars | `NORMAL.slots.bar` | `COLORS.track / progress / goalReached` | goals from Fitbit |
-| Metric values | `NORMAL.slots.value` | `TYPE.metric` | `settings.js → SLOTS` |
+| Background | — | `theme.js → BACKGROUND` (solid black) | — |
+| Corner brackets | `layout.js → NORMAL.frame` (corners, arm, stroke, gap) | `COLORS.frame` | — |
+| Day / time / date | `NORMAL.day`, `NORMAL.time`, `NORMAL.date` | `TYPE.day / time / date` | `settings.js → DATE`, `TIME` |
+| Stat rows | `NORMAL.stats` (x, width, row tops) | — | `settings.js → STATS` |
+| Stat icon | `NORMAL.stats.icon` | `COLORS.icon` | `data/metrics.js → icon` |
+| Stat label / value | `NORMAL.stats.label`, `.value` | `TYPE.label`, `TYPE.metric` | `data/metrics.js → label`, `format` |
+| Stat bar | `NORMAL.stats.bar` (height, stroke, inset) | `COLORS.barOutline / progress / goalReached` | `data/metrics.js → progress` |
+| Battery (hidden) | `NORMAL.battery` | `COLORS.battery*`, `TYPE.battery` | `settings.js → BATTERY` |
 | AOD time/date | `layout.js → AOD` | `TYPE.aodTime / aodDate` | `DATE.aodFormat` |
 
 ## 8. AOD design rules
 
 AOD mode, in `app/modes/aod.js`, deliberately shows **only the time and date**. Follow these rules when designing the AOD frame:
 
-- **Pure black background.** The glow and background image are hidden in AOD.
+- **Pure black background.** No frame, stats or background image in AOD.
 - **Few lit pixels.** Use thin weights and no filled shapes, and aim for well under ~15% of pixels lit. Large bold numerals or icons increase OLED power draw.
 - **Dim colours.** Mid greys (`#9E9E9E`, `#5C5C5C`) instead of white.
 - **No seconds, no sensors, no animation.** The screen updates once per minute.
@@ -179,7 +181,7 @@ When you have a new Figma design, send:
 2. Ideally, the **Figma Inspect values** (X, Y, W, H, font size, colours) for each layer, or a link to the file.
 3. Any new icons as grayscale PNGs at their final size (§5).
 
-Then tell me: *"Make the clock face look exactly like this."* I'll update `config/`, `resources/` and, if the structure changes (new elements, different slot count, new glyph sets), the matching `ui/` component and `index.view`. The `data/`, `modes/` and `core/` code stays as it is.
+Then tell me: *"Make the clock face look exactly like this."* I'll update `config/`, `resources/` and, if the structure changes (new elements, different row count, new glyph sets), the matching `ui/` component and `index.view`. The `data/`, `modes/` and `core/` code stays as it is.
 
 ## 10. Checklist before building
 

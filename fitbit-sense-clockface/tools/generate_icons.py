@@ -20,10 +20,9 @@ import os
 from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = os.path.join(os.path.dirname(__file__), "..", "resources")
-# Final icon sizes (px) — match layout.js NORMAL.slots.columns[].icon.size.
-# The heart sits in the centre column at a larger size, like the reference.
-SIZES = {"heart": 40}
-DEFAULT_SIZE = 22
+# Final icon sizes (px) — match layout.js NORMAL.stats.icon.size.
+SIZES = {}
+DEFAULT_SIZE = 14
 SS = 8             # supersampling factor for smooth anti-aliased edges
 
 
@@ -131,6 +130,19 @@ def radial_glow(w, h, cx, cy, radius, inner, outer):
     return img
 
 
+def sleep_icon():
+    # Crescent moon: a disc with an offset disc cut out of it.
+    img, n = canvas()
+    d = ImageDraw.Draw(img)
+    r = n * 0.44
+    cx, cy = n * 0.48, n * 0.52
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=255)
+    r2 = r * 0.86
+    ox, oy = cx + r * 0.52, cy - r * 0.38
+    d.ellipse([ox - r2, oy - r2, ox + r2, oy + r2], fill=0)
+    save(img, "sleep.png")
+
+
 def app_icon():
     # 80×80 colour icon shown in the Fitbit app's clock-face list.
     n = 80 * SS
@@ -155,6 +167,6 @@ def background():
 if __name__ == "__main__":
     os.makedirs(os.path.join(ROOT, "icons"), exist_ok=True)
     os.makedirs(os.path.join(ROOT, "bg"), exist_ok=True)
-    heart(); calories(); steps(); azm(); distance(); floors()
+    heart(); calories(); steps(); azm(); distance(); floors(); sleep_icon()
     app_icon(); background()
     print("icons written to", os.path.abspath(ROOT))

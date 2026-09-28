@@ -40,6 +40,7 @@ const MODULES = {
   power: "export const battery = m.battery;",
   "user-settings": "export const preferences = m.preferences; export const units = m.units;",
   haptics: "export const vibration = m.vibration;",
+  sleep: "export default m.sleep;",
   fs: "export const existsSync = m.existsSync, readFileSync = m.readFileSync, writeFileSync = m.writeFileSync;"
 };
 const mocksPath = path.join(HERE, "mocks.js");
@@ -143,9 +144,10 @@ const els = {};
 
 // ------------------------------------------------------------ run app ----
 const RealDate = Date;
-let now = new RealDate(2026, 8, 23, 12, 58, 0); // Wed 23 Sep 2026, 12:58
+let now = new RealDate(2026, 9, 9, 23, 40, 0); // Fri 9 Oct 2026, 23:40 — face starts while asleep
 globalThis.Date = class extends RealDate {
   constructor(...args) { if (args.length) super(...args); else super(now.getTime()); }
+  static now() { return now.getTime(); }
 };
 
 // The app runs at load time, so the mock DOM must exist before require().
@@ -199,70 +201,76 @@ function snapshot(name) {
 }
 const shots = [];
 
+console.log("\nSleep tracking (overnight)");
+check(fb.sleep.__handlers.change && fb.sleep.__handlers.change.length === 1, "listens to sleep state changes");
+now = new RealDate(2026, 9, 10, 7, 0, 0); // woke at 07:00 → 7h20m asleep
+fb.sleep.state = "awake"; fb.sleep.__emit("change");
+check(JSON.parse(fb.files["sleep-log.json"]).periods.length === 1, "sleep period persisted to the watch");
+now = new RealDate(2026, 9, 10, 11, 55, 0);
+tick(); // → Sat 10 Oct 11:56
+
 console.log("\nNORMAL mode");
 check(fb.clock.granularity === "minutes", "clock ticks per minute");
-check(label("time") === "12:58", `time renders 12h → "${label("time")}"`);
-check(label("date") === "WED23", `date renders → "${label("date")}"`);
-check(label("slot0-value") === "8,348", `steps formatted → "${label("slot0-value")}"`);
-check(label("slot2-value") === "1,359", `calories formatted → "${label("slot2-value")}"`);
-const pillWidth = (id) => el(id).width + 2 * el(id + "-l").r;
-check(pillWidth("slot0-bar") === Math.round(54 * 0.8348), `steps pill bar = 83% (${pillWidth("slot0-bar")}px of 54)`);
-check(el("slot0-bar-r").cx + el("slot0-bar-r").r === el("slot0-track").x - el("slot0-track-l").r + pillWidth("slot0-bar"), "pill end cap sits at the fill edge");
-check(label("bat-text") === "84%", "battery % shown");
+check(label("day") === "SAT", `day → "${label("day")}"`);
+check(label("time") === "11:56", `time 12h → "${label("time")}"`);
+check(label("date") === "10/10", `date D/M → "${label("date")}"`);
+check(label("stat0-label") === "CALORIES" && label("stat0-value") === "1,359", `row 1 → ${label("stat0-label")} ${label("stat0-value")}`);
+check(label("stat1-label") === "HEARTRATE" && label("stat1-value") === "--", "row 2 → HEART RATE, placeholder before first reading");
+check(label("stat2-label") === "STEPS" && label("stat2-value") === "8,348", `row 3 → ${label("stat2-label")} ${label("stat2-value")}`);
+check(label("stat3-label") === "SLEEP" && label("stat3-value") === "7H20M", `row 4 → ${label("stat3-label")} ${label("stat3-value")}`);
+const fillMax = 146 - 2 * (2 + 3);
+check(el("stat2-fill").width === Math.round(fillMax * 0.8348), `steps bar = 83% (${el("stat2-fill").width}px of ${fillMax})`);
+check(el("stat3-fill").width === Math.round(fillMax * 440 / 480), "sleep bar vs 8h goal");
 check(fb.hrm && fb.hrm.activated, "heart-rate sensor running");
-check(fb.body && fb.body.activated, "body-presence sensor running");
-check(fb.display.aodAllowed === true, "AOD requested (aodAllowed = true)");
-check(label("slot1-value") === "--", "HR shows placeholder before first reading");
+check(fb.display.aodAllowed === true, "AOD requested when permission is granted");
 fb.hrm.heartRate = 78; fb.hrm.__emit("reading");
-check(label("slot1-value") === "78", "HR updates on sensor reading");
-check(!visible("slot1-bar") && !visible("slot1-track") && !visible("slot1-track-l"), "HR slot has no progress bar (no goal)");
-check(el("slot1-icon").width === 40 && el("slot0-icon").width === 22, "heart icon larger than side icons");
+check(label("stat1-value") === "78" && el("stat1-fill").width > 0, "HR updates on sensor reading, gauge fills");
+check(visible("grp-frame") && visible("frame-tl-oh") && visible("frame-br-iv"), "corner brackets visible");
 check(!visible("grp-battery"), "battery hidden (matches reference)");
 snapshot("1-normal");
 
 console.log("\nIdle redraw guard");
-const before = label("slot0-value");
+const before = label("stat2-value");
 fb.hrm.__emit("reading"); // same bpm again
-check(label("slot1-value") === "78" && label("slot0-value") === before, "same HR value → no redraw");
+check(label("stat1-value") === "78" && label("stat2-value") === before, "same HR value → no redraw");
 
 console.log("\nTouch");
-click("slot0-hit");
-check(label("slot0-value") === "5.2km", `tap cycles steps → distance ("${label("slot0-value")}")`);
+click("stat2-hit");
+check(label("stat2-label") === "DISTANCE" && label("stat2-value") === "5.2km", `tap cycles steps → distance ("${label("stat2-value")}")`);
 check(fb.vibrations.length === 1, "haptic bump on tap");
-check(JSON.parse(fb.files["face-state.json"]).sel[0] === 1, "selection persisted");
-click("slot2-hit");
-check(label("slot2-value") === "22", "tap cycles calories → AZM");
-check(el("slot2-bar").style.fill === "#FFFFFF", "goal reached → bar brightens to white");
+check(JSON.parse(fb.files["face-state.json"]).sel[2] === 1, "selection persisted");
+click("stat0-hit");
+check(label("stat0-label") === "ACTIVEMIN" && label("stat0-value") === "22", "tap cycles calories → active minutes");
+check(el("stat0-fill").style.fill === "#FFFFFF", "goal reached → bar fill brightens to white");
 snapshot("2-normal-alt");
-click("slot0-hit"); click("slot0-hit"); click("slot2-hit");
-check(label("slot0-value") === "8,348" && label("slot2-value") === "1,359", "cycling wraps around");
-check((el("slot1-hit").handlers.click || []).length === 0, "single-metric slot ignores taps");
+click("stat2-hit"); click("stat2-hit"); click("stat0-hit");
+check(label("stat2-value") === "8,348" && label("stat0-value") === "1,359", "cycling wraps around");
+check((el("stat1-hit").handlers.click || []).length === 0, "single-metric row ignores taps");
 
 console.log("\nMinute tick");
 fb.today.adjusted.steps = 8420;
 tick();
-check(label("time") === "12:59", "time advances on tick");
-check(label("slot0-value") === "8,420", "steps refresh on tick");
+check(label("time") === "11:57", "time advances on tick");
+check(label("stat2-value") === "8,420", "steps refresh on tick");
 
-console.log("\nBattery");
-fb.battery.chargeLevel = 15; fb.battery.__emit("change");
-check(label("bat-text") === "15%" && el("bat-level").style.fill === "#FFFFFF", "low battery brightens to white");
-fb.battery.chargeLevel = 84; fb.battery.__emit("change");
+console.log("\nNap counts too");
+fb.sleep.state = "asleep"; fb.sleep.__emit("change");
+tick(30);
+check(label("stat3-value") === "7H50M", `ongoing sleep adds up (${label("stat3-value")})`);
+fb.sleep.state = "awake"; fb.sleep.__emit("change");
 
 console.log("\nAOD mode");
 setDisplay(true, true);
 check(!fb.hrm.activated && !fb.body.activated, "sensors stopped in AOD");
-check(!visible("grp-metrics") && !visible("grp-battery"), "metrics + battery hidden");
-check(!visible("bg-gradient"), "glow hidden (pure black)");
+check(!visible("grp-stats") && !visible("grp-frame") && !visible("day-grp"), "stats, frame, day hidden");
 check(visible("time-grp") && visible("date-grp") && visible("time-g0"), "time + date visible");
 check(el("time-g0").href.indexOf("glyphs/timeAod/") === 0, "AOD uses the light glyph set");
 const p0 = [el("time-g0").x, el("time-g0").y];
 tick();
 check(el("time-g0").x !== p0[0] || el("time-g0").y !== p0[1], "burn-in offset moves text each minute");
-check(label("time") === "1:00", `time still ticks in AOD ("${label("time")}")`);
 snapshot("3-aod");
 fb.hrm.heartRate = 90; fb.hrm.__emit("reading");
-check(label("slot1-value") === "78", "HR readings ignored while in AOD");
+check(label("stat1-value") === "78", "HR readings ignored while in AOD");
 
 console.log("\nOFF");
 setDisplay(false, false);
@@ -270,22 +278,20 @@ check(fb.clock.granularity === "off", "clock stopped while screen off");
 check(!fb.hrm.activated, "sensors stay stopped");
 
 console.log("\nWake → NORMAL");
-tick(0);
-now = new RealDate(2026, 8, 24, 0, 5, 0);
+now = new RealDate(2026, 9, 11, 0, 5, 0);
 setDisplay(true, false);
-check(fb.clock.granularity === "minutes", "clock restarted");
-check(fb.hrm.activated, "HR restarted");
-check(visible("grp-metrics") && visible("bg-gradient"), "full layout restored");
+check(fb.clock.granularity === "minutes" && fb.hrm.activated, "clock + HR restarted");
+check(visible("grp-stats") && visible("grp-frame") && visible("day-grp"), "full layout restored");
 check(el("time-g0").href.indexOf("glyphs/time/") === 0, "normal typography restored");
-check(label("time") === "12:05" && label("date") === "THU24", "time/date refreshed immediately on wake");
+check(label("time") === "12:05" && label("day") === "SUN" && label("date") === "11/10", "time/day/date refreshed immediately on wake");
 
 console.log("\nOff-wrist");
 fb.body.present = false; fb.body.__emit("reading");
-check(label("slot1-value") === "--", "off-wrist → HR placeholder");
+check(label("stat1-value") === "--", "off-wrist → HR placeholder");
 
 console.log("\n24h clock");
 fb.preferences.clockDisplay = "24h";
-now = new RealDate(2026, 8, 24, 20, 47, 0);
+now = new RealDate(2026, 9, 11, 20, 47, 0);
 tick();
 check(label("time") === "20:48", "24h format honoured");
 snapshot("4-normal-24h");

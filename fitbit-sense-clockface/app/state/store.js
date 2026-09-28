@@ -1,12 +1,12 @@
 /*
- * Tiny persisted UI state (which metric each slot shows).
+ * Tiny persisted UI state (which metric each stat row shows).
  * Written only when the user taps, never on a timer.
  */
 import * as fs from "fs";
 
 const FILE = "face-state.json";
 
-export function loadSelection(slotConfig, persist) {
+export function loadSelection(rowConfig, persist) {
   const sel = [];
   let saved = null;
   if (persist) {
@@ -16,10 +16,10 @@ export function loadSelection(slotConfig, persist) {
       saved = null;
     }
   }
-  for (let i = 0; i < slotConfig.length; i++) {
+  for (let i = 0; i < rowConfig.length; i++) {
     const n = saved && saved.sel ? saved.sel[i] : 0;
-    // Guard against a stale file after SLOTS was edited.
-    sel.push(typeof n === "number" && n >= 0 && n < slotConfig[i].length ? n : 0);
+    // Guard against a stale file after STATS was edited.
+    sel.push(typeof n === "number" && n >= 0 && n < rowConfig[i].length ? n : 0);
   }
   return sel;
 }

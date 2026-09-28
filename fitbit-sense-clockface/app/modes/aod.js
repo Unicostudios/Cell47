@@ -3,7 +3,7 @@
  *
  * Rules followed here:
  *   • Pure black background, glow/image hidden (OLED: black = pixel off).
- *   • Only time (+ optional date). No metrics, no battery, no bars/icons.
+ *   • Only time (+ optional date). No frame, stats, battery, bars or icons.
  *   • Dimmer colours and a lighter weight (TYPE.aodTime / aodDate).
  *   • No sensors running; updates only on the minute tick.
  *   • Text block shifts by a few px each minute to avoid burn-in.
@@ -29,8 +29,9 @@ export function createAodMode(face, timeText) {
   return {
     enter: function (date) {
       face.background.setMode(true);
+      face.frame.setVisible(false);
       face.battery.setVisible(false);
-      face.slots.setVisible(false);
+      face.stats.setVisible(false);
       render(date);
     },
     exit: function () {},

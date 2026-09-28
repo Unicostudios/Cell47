@@ -15,25 +15,34 @@ export const DATE = {
   // Tokens: dddd = WEDNESDAY, ddd = WED, D = 3, DD = 03,
   //         MMMM = SEPTEMBER, MMM = SEP, M = 9, MM = 09, YYYY = 2026
   // Anything else is printed literally.
-  format: "ddd D",
+  dayFormat: "ddd", // top of the left column, e.g. "SAT"
+  format: "D/M", // bottom of the left column, e.g. "10/11" (use "M/D" for US order)
   aodFormat: "ddd D",
   uppercase: true
 };
 
 /*
- * SLOTS — what the three bottom slots display (left → right).
- * Each slot is a list of metric ids; tapping a slot cycles through its list.
- * A slot with one metric ignores taps.
+ * STATS — the four rows on the right, top → bottom.
+ * Each row is a list of metric ids; tapping a row cycles through its list.
+ * A row with one metric ignores taps.
  *
  * Available metric ids (see app/data/metrics.js):
- *   "steps", "calories", "heartRate", "azm" (Active Zone Minutes),
- *   "distance", "floors"
+ *   "calories", "heartRate", "steps", "sleep",
+ *   "azm" (Active Zone Minutes), "distance", "floors"
  */
-export const SLOTS = [
-  ["steps", "distance", "floors"],
+export const STATS = [
+  ["calories", "azm"],
   ["heartRate"],
-  ["calories", "azm"]
+  ["steps", "distance", "floors"],
+  ["sleep"]
 ];
+
+export const SLEEP = {
+  // Bar target for the SLEEP row, in minutes (8 h = 480).
+  goalMinutes: 480,
+  // "Last night" = sleep recorded within this many hours before now.
+  windowHours: 20
+};
 
 export const BATTERY = {
   show: false, // the reference face has no battery; set true to show it top-centre
@@ -42,7 +51,7 @@ export const BATTERY = {
 
 export const INTERACTION = {
   tapToCycle: true,
-  haptics: true // short "bump" vibration when a slot changes
+  haptics: true // short "bump" vibration when a row changes
 };
 
 export const AOD_SETTINGS = {
@@ -54,5 +63,5 @@ export const AOD_SETTINGS = {
   showDate: true
 };
 
-// Persist the selected metric of each slot across clock-face restarts.
+// Persist the selected metric of each row across clock-face restarts.
 export const PERSIST_STATE = true;

@@ -10,13 +10,33 @@
 <svg id="root">
   <!-- Background layers -->
   <rect id="bg-solid" x="0" y="0" width="100%" height="100%" />
-  <gradientRect id="bg-gradient" x="0" y="0" width="100%" height="100%"
+  <gradientRect id="bg-gradient" x="0" y="0" width="100%" height="100%" display="none"
     gradient-type="radial"
     gradient-x1="168" gradient-y1="258" gradient-x2="300" gradient-y2="396"
-    gradient-color1="#565656" gradient-color2="#000000" />
+    gradient-color1="#262626" gradient-color2="#000000" />
   <image id="bg-image" x="0" y="0" width="336" height="336" display="none" />
 
-  <!-- Status: battery -->
+  <!-- Corner brackets -->
+  <g id="grp-frame">
+    <rect id="frame-tl-oh" x="0" y="0" width="0" height="0" />
+    <rect id="frame-tl-ov" x="0" y="0" width="0" height="0" />
+    <rect id="frame-tl-ih" x="0" y="0" width="0" height="0" />
+    <rect id="frame-tl-iv" x="0" y="0" width="0" height="0" />
+    <rect id="frame-tr-oh" x="0" y="0" width="0" height="0" />
+    <rect id="frame-tr-ov" x="0" y="0" width="0" height="0" />
+    <rect id="frame-tr-ih" x="0" y="0" width="0" height="0" />
+    <rect id="frame-tr-iv" x="0" y="0" width="0" height="0" />
+    <rect id="frame-bl-oh" x="0" y="0" width="0" height="0" />
+    <rect id="frame-bl-ov" x="0" y="0" width="0" height="0" />
+    <rect id="frame-bl-ih" x="0" y="0" width="0" height="0" />
+    <rect id="frame-bl-iv" x="0" y="0" width="0" height="0" />
+    <rect id="frame-br-oh" x="0" y="0" width="0" height="0" />
+    <rect id="frame-br-ov" x="0" y="0" width="0" height="0" />
+    <rect id="frame-br-ih" x="0" y="0" width="0" height="0" />
+    <rect id="frame-br-iv" x="0" y="0" width="0" height="0" />
+  </g>
+
+  <!-- Status: battery (hidden by default) -->
   <g id="grp-battery">
     <rect id="bat-top" x="0" y="0" width="0" height="0" />
     <rect id="bat-bottom" x="0" y="0" width="0" height="0" />
@@ -33,9 +53,32 @@
     </g>
   </g>
 
-  <!-- Time & date -->
+  <!-- Left column: day, time, date -->
+  <g id="day-grp">
+    <text id="day" x="0" y="0" text-anchor="middle">--</text>
+    <image id="day-g0" x="0" y="0" width="0" height="0" display="none" />
+    <image id="day-g1" x="0" y="0" width="0" height="0" display="none" />
+    <image id="day-g2" x="0" y="0" width="0" height="0" display="none" />
+    <image id="day-g3" x="0" y="0" width="0" height="0" display="none" />
+    <image id="day-g4" x="0" y="0" width="0" height="0" display="none" />
+    <image id="day-g5" x="0" y="0" width="0" height="0" display="none" />
+    <image id="day-g6" x="0" y="0" width="0" height="0" display="none" />
+    <image id="day-g7" x="0" y="0" width="0" height="0" display="none" />
+    <image id="day-g8" x="0" y="0" width="0" height="0" display="none" />
+    <image id="day-g9" x="0" y="0" width="0" height="0" display="none" />
+    <image id="day-g10" x="0" y="0" width="0" height="0" display="none" />
+    <image id="day-g11" x="0" y="0" width="0" height="0" display="none" />
+  </g>
+  <g id="time-grp">
+    <text id="time" x="0" y="0" text-anchor="middle">--</text>
+    <image id="time-g0" x="0" y="0" width="0" height="0" display="none" />
+    <image id="time-g1" x="0" y="0" width="0" height="0" display="none" />
+    <image id="time-g2" x="0" y="0" width="0" height="0" display="none" />
+    <image id="time-g3" x="0" y="0" width="0" height="0" display="none" />
+    <image id="time-g4" x="0" y="0" width="0" height="0" display="none" />
+  </g>
   <g id="date-grp">
-    <text id="date" x="168" y="56" text-anchor="middle">--</text>
+    <text id="date" x="0" y="0" text-anchor="middle">--</text>
     <image id="date-g0" x="0" y="0" width="0" height="0" display="none" />
     <image id="date-g1" x="0" y="0" width="0" height="0" display="none" />
     <image id="date-g2" x="0" y="0" width="0" height="0" display="none" />
@@ -49,82 +92,144 @@
     <image id="date-g10" x="0" y="0" width="0" height="0" display="none" />
     <image id="date-g11" x="0" y="0" width="0" height="0" display="none" />
   </g>
-  <g id="time-grp">
-    <text id="time" x="168" y="188" text-anchor="middle">--</text>
-    <image id="time-g0" x="0" y="0" width="0" height="0" display="none" />
-    <image id="time-g1" x="0" y="0" width="0" height="0" display="none" />
-    <image id="time-g2" x="0" y="0" width="0" height="0" display="none" />
-    <image id="time-g3" x="0" y="0" width="0" height="0" display="none" />
-    <image id="time-g4" x="0" y="0" width="0" height="0" display="none" />
-  </g>
 
-  <!-- Metric slots -->
-  <g id="grp-metrics">
-    <g id="slot0">
-      <image id="slot0-icon" x="0" y="0" width="22" height="22" />
-      <rect id="slot0-track" x="0" y="0" width="0" height="0" />
-      <circle id="slot0-track-l" cx="0" cy="0" r="0" />
-      <circle id="slot0-track-r" cx="0" cy="0" r="0" />
-      <rect id="slot0-bar" x="0" y="0" width="0" height="0" />
-      <circle id="slot0-bar-l" cx="0" cy="0" r="0" />
-      <circle id="slot0-bar-r" cx="0" cy="0" r="0" />
-      <g id="slot0-value-grp">
-        <text id="slot0-value" x="0" y="0" text-anchor="middle">--</text>
-        <image id="slot0-value-g0" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot0-value-g1" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot0-value-g2" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot0-value-g3" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot0-value-g4" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot0-value-g5" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot0-value-g6" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot0-value-g7" x="0" y="0" width="0" height="0" display="none" />
+  <!-- Right column: stat rows -->
+  <g id="grp-stats">
+    <g id="stat0">
+      <image id="stat0-icon" x="0" y="0" width="14" height="14" />
+      <g id="stat0-label-grp">
+        <text id="stat0-label" x="0" y="0">--</text>
+        <image id="stat0-label-g0" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat0-label-g1" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat0-label-g2" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat0-label-g3" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat0-label-g4" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat0-label-g5" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat0-label-g6" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat0-label-g7" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat0-label-g8" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat0-label-g9" x="0" y="0" width="0" height="0" display="none" />
       </g>
+      <g id="stat0-value-grp">
+        <text id="stat0-value" x="0" y="0" text-anchor="end">--</text>
+        <image id="stat0-value-g0" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat0-value-g1" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat0-value-g2" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat0-value-g3" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat0-value-g4" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat0-value-g5" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat0-value-g6" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat0-value-g7" x="0" y="0" width="0" height="0" display="none" />
+      </g>
+      <rect id="stat0-bt" x="0" y="0" width="0" height="0" />
+      <rect id="stat0-bb" x="0" y="0" width="0" height="0" />
+      <rect id="stat0-bl" x="0" y="0" width="0" height="0" />
+      <rect id="stat0-br" x="0" y="0" width="0" height="0" />
+      <rect id="stat0-fill" x="0" y="0" width="0" height="0" />
       <!-- invisible touch target; pointer-events lets it receive taps -->
-      <rect id="slot0-hit" x="0" y="0" width="0" height="0" opacity="0" pointer-events="visible" />
+      <rect id="stat0-hit" x="0" y="0" width="0" height="0" opacity="0" pointer-events="visible" />
     </g>
-    <g id="slot1">
-      <image id="slot1-icon" x="0" y="0" width="22" height="22" />
-      <rect id="slot1-track" x="0" y="0" width="0" height="0" />
-      <circle id="slot1-track-l" cx="0" cy="0" r="0" />
-      <circle id="slot1-track-r" cx="0" cy="0" r="0" />
-      <rect id="slot1-bar" x="0" y="0" width="0" height="0" />
-      <circle id="slot1-bar-l" cx="0" cy="0" r="0" />
-      <circle id="slot1-bar-r" cx="0" cy="0" r="0" />
-      <g id="slot1-value-grp">
-        <text id="slot1-value" x="0" y="0" text-anchor="middle">--</text>
-        <image id="slot1-value-g0" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot1-value-g1" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot1-value-g2" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot1-value-g3" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot1-value-g4" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot1-value-g5" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot1-value-g6" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot1-value-g7" x="0" y="0" width="0" height="0" display="none" />
+    <g id="stat1">
+      <image id="stat1-icon" x="0" y="0" width="14" height="14" />
+      <g id="stat1-label-grp">
+        <text id="stat1-label" x="0" y="0">--</text>
+        <image id="stat1-label-g0" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat1-label-g1" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat1-label-g2" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat1-label-g3" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat1-label-g4" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat1-label-g5" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat1-label-g6" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat1-label-g7" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat1-label-g8" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat1-label-g9" x="0" y="0" width="0" height="0" display="none" />
       </g>
+      <g id="stat1-value-grp">
+        <text id="stat1-value" x="0" y="0" text-anchor="end">--</text>
+        <image id="stat1-value-g0" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat1-value-g1" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat1-value-g2" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat1-value-g3" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat1-value-g4" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat1-value-g5" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat1-value-g6" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat1-value-g7" x="0" y="0" width="0" height="0" display="none" />
+      </g>
+      <rect id="stat1-bt" x="0" y="0" width="0" height="0" />
+      <rect id="stat1-bb" x="0" y="0" width="0" height="0" />
+      <rect id="stat1-bl" x="0" y="0" width="0" height="0" />
+      <rect id="stat1-br" x="0" y="0" width="0" height="0" />
+      <rect id="stat1-fill" x="0" y="0" width="0" height="0" />
       <!-- invisible touch target; pointer-events lets it receive taps -->
-      <rect id="slot1-hit" x="0" y="0" width="0" height="0" opacity="0" pointer-events="visible" />
+      <rect id="stat1-hit" x="0" y="0" width="0" height="0" opacity="0" pointer-events="visible" />
     </g>
-    <g id="slot2">
-      <image id="slot2-icon" x="0" y="0" width="22" height="22" />
-      <rect id="slot2-track" x="0" y="0" width="0" height="0" />
-      <circle id="slot2-track-l" cx="0" cy="0" r="0" />
-      <circle id="slot2-track-r" cx="0" cy="0" r="0" />
-      <rect id="slot2-bar" x="0" y="0" width="0" height="0" />
-      <circle id="slot2-bar-l" cx="0" cy="0" r="0" />
-      <circle id="slot2-bar-r" cx="0" cy="0" r="0" />
-      <g id="slot2-value-grp">
-        <text id="slot2-value" x="0" y="0" text-anchor="middle">--</text>
-        <image id="slot2-value-g0" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot2-value-g1" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot2-value-g2" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot2-value-g3" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot2-value-g4" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot2-value-g5" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot2-value-g6" x="0" y="0" width="0" height="0" display="none" />
-        <image id="slot2-value-g7" x="0" y="0" width="0" height="0" display="none" />
+    <g id="stat2">
+      <image id="stat2-icon" x="0" y="0" width="14" height="14" />
+      <g id="stat2-label-grp">
+        <text id="stat2-label" x="0" y="0">--</text>
+        <image id="stat2-label-g0" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat2-label-g1" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat2-label-g2" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat2-label-g3" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat2-label-g4" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat2-label-g5" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat2-label-g6" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat2-label-g7" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat2-label-g8" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat2-label-g9" x="0" y="0" width="0" height="0" display="none" />
       </g>
+      <g id="stat2-value-grp">
+        <text id="stat2-value" x="0" y="0" text-anchor="end">--</text>
+        <image id="stat2-value-g0" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat2-value-g1" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat2-value-g2" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat2-value-g3" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat2-value-g4" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat2-value-g5" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat2-value-g6" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat2-value-g7" x="0" y="0" width="0" height="0" display="none" />
+      </g>
+      <rect id="stat2-bt" x="0" y="0" width="0" height="0" />
+      <rect id="stat2-bb" x="0" y="0" width="0" height="0" />
+      <rect id="stat2-bl" x="0" y="0" width="0" height="0" />
+      <rect id="stat2-br" x="0" y="0" width="0" height="0" />
+      <rect id="stat2-fill" x="0" y="0" width="0" height="0" />
       <!-- invisible touch target; pointer-events lets it receive taps -->
-      <rect id="slot2-hit" x="0" y="0" width="0" height="0" opacity="0" pointer-events="visible" />
+      <rect id="stat2-hit" x="0" y="0" width="0" height="0" opacity="0" pointer-events="visible" />
+    </g>
+    <g id="stat3">
+      <image id="stat3-icon" x="0" y="0" width="14" height="14" />
+      <g id="stat3-label-grp">
+        <text id="stat3-label" x="0" y="0">--</text>
+        <image id="stat3-label-g0" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat3-label-g1" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat3-label-g2" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat3-label-g3" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat3-label-g4" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat3-label-g5" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat3-label-g6" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat3-label-g7" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat3-label-g8" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat3-label-g9" x="0" y="0" width="0" height="0" display="none" />
+      </g>
+      <g id="stat3-value-grp">
+        <text id="stat3-value" x="0" y="0" text-anchor="end">--</text>
+        <image id="stat3-value-g0" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat3-value-g1" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat3-value-g2" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat3-value-g3" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat3-value-g4" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat3-value-g5" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat3-value-g6" x="0" y="0" width="0" height="0" display="none" />
+        <image id="stat3-value-g7" x="0" y="0" width="0" height="0" display="none" />
+      </g>
+      <rect id="stat3-bt" x="0" y="0" width="0" height="0" />
+      <rect id="stat3-bb" x="0" y="0" width="0" height="0" />
+      <rect id="stat3-bl" x="0" y="0" width="0" height="0" />
+      <rect id="stat3-br" x="0" y="0" width="0" height="0" />
+      <rect id="stat3-fill" x="0" y="0" width="0" height="0" />
+      <!-- invisible touch target; pointer-events lets it receive taps -->
+      <rect id="stat3-hit" x="0" y="0" width="0" height="0" opacity="0" pointer-events="visible" />
     </g>
   </g>
 </svg>

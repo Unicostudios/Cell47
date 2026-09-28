@@ -1,53 +1,77 @@
 /*
  * METRIC REGISTRY — the single place that maps a metric id to its data,
- * formatting and icon. The UI never talks to sensors directly; it asks this
- * registry for { text, progress, hasGoal, icon }.
+ * formatting, label and icon. The UI never talks to sensors directly; it asks
+ * this registry for text, progress and icon.
  *
  * To add a metric: add an entry here, add its icon to resources/icons/,
- * then reference its id in settings.js → SLOTS.
+ * then reference its id in settings.js → STATS.
  *
  * Entry fields:
- *   icon      path inside resources/ (grayscale PNG, tinted at runtime)
- *   value()   current raw value (number | null | undefined)
- *   goal()    daily goal, or omit for metrics without a goal (no bar shown)
- *   format(v) value → display string
- *   live      true if the value is pushed by a sensor (heart rate) rather
- *             than polled each minute
+ *   label        row caption (UPPERCASE; must exist in the "label" glyph set)
+ *   icon         path inside resources/ (grayscale PNG, tinted at runtime)
+ *   value()      current raw value (number | null | undefined)
+ *   progress(v)  0..1 fill of the row's bar
+ *   format(v)    value → display string
+ *   live         true if the value is pushed by a sensor (heart rate) rather
+ *                than polled each minute
  */
 import { units } from "user-settings";
 import { todayValue, goalValue } from "./activity";
 import { currentHeartRate } from "./heartRate";
-import { formatInt, formatDistance, PLACEHOLDER } from "../core/format";
+import { sleepMinutes } from "./sleep";
+import { SLEEP } from "../config/settings";
+import { formatInt, formatDistance, formatDuration, progress, PLACEHOLDER } from "../core/format";
+
+// Heart-rate bar: resting-ish to hard effort. Not a goal, just a gauge.
+const HR_BAR_MIN = 40;
+const HR_BAR_MAX = 190;
+
+function towardsGoal(field) {
+  return function (v) { return progress(v, goalValue(field)); };
+}
 
 export const METRICS = {
-  steps: {
-    icon: "icons/steps.png",
-    value: function () { return todayValue("steps"); },
-    goal: function () { return goalValue("steps"); },
-    format: formatInt
-  },
   calories: {
+    label: "CALORIES",
     icon: "icons/calories.png",
     value: function () { return todayValue("calories"); },
-    goal: function () { return goalValue("calories"); },
+    progress: towardsGoal("calories"),
     format: formatInt
   },
   heartRate: {
+    label: "HEART RATE",
     icon: "icons/heart.png",
     live: true,
     value: currentHeartRate,
+    progress: function (v) { return v ? progress(v - HR_BAR_MIN, HR_BAR_MAX - HR_BAR_MIN) : 0; },
     format: function (v) { return v ? "" + v : PLACEHOLDER; }
   },
+  steps: {
+    label: "STEPS",
+    icon: "icons/steps.png",
+    value: function () { return todayValue("steps"); },
+    progress: towardsGoal("steps"),
+    format: formatInt
+  },
+  sleep: {
+    label: "SLEEP",
+    icon: "icons/sleep.png",
+    value: sleepMinutes,
+    progress: function (v) { return progress(v, SLEEP.goalMinutes); },
+    format: formatDuration
+  },
   azm: {
+    label: "ACTIVE MIN",
     icon: "icons/azm.png",
     value: function () { return todayValue("activeZoneMinutes"); },
-    goal: function () { return goalValue("activeZoneMinutes"); },
+    progress: towardsGoal("activeZoneMinutes"),
     format: formatInt
   },
   distance: {
+    label: "DISTANCE",
     icon: "icons/distance.png",
     value: function () { return todayValue("distance"); },
-    goal: function () { return goalValue("distance"); },
+    progress: towardsGoal("distance"),
     format: function (v) {
       const us = units.distance === "us";
       const s = formatDistance(v, us ? "us" : "metric");
@@ -55,15 +79,16 @@ export const METRICS = {
     }
   },
   floors: {
+    label: "FLOORS",
     icon: "icons/floors.png",
     value: function () { return todayValue("elevationGain"); },
-    goal: function () { return goalValue("elevationGain"); },
+    progress: towardsGoal("elevationGain"),
     format: formatInt
   }
 };
 
 export function getMetric(id) {
   const m = METRICS[id];
-  if (!m) throw new Error("Unknown metric id in settings.SLOTS: " + id);
+  if (!m) throw new Error("Unknown metric id in settings.STATS: " + id);
   return m;
 }

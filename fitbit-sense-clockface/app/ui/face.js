@@ -4,15 +4,17 @@
  * from a new Figma design you change config/ + resources/, not this wiring.
  */
 import { createBackground } from "./background";
+import { createFrame } from "./frame";
 import { createClockText } from "./clockText";
 import { createBattery } from "./battery";
-import { createSlots } from "./slots";
+import { createStats } from "./stats";
 
-export function createFace(slotConfig) {
+export function createFace(statConfig) {
   return {
     background: createBackground(),
+    frame: createFrame(),
     clockText: createClockText(),
     battery: createBattery(),
-    slots: createSlots(slotConfig)
+    stats: createStats(statConfig)
   };
 }

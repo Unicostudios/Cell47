@@ -39,7 +39,7 @@ export const display = (fb.display = emitter({
 }));
 
 // ---- appbit ---------------------------------------------------------------
-fb.granted = { access_activity: true, access_heart_rate: true, access_aod: true };
+fb.granted = { access_activity: true, access_heart_rate: true, access_aod: true, access_sleep: true };
 export const me = {
   permissions: { granted: function (p) { return !!fb.granted[p]; } },
   appTimeoutEnabled: true
@@ -74,6 +74,9 @@ export const battery = (fb.battery = emitter({ chargeLevel: 84, charging: false,
 // ---- user-settings --------------------------------------------------------
 export const preferences = (fb.preferences = { clockDisplay: "12h", firstDayOfWeek: 0 });
 export const units = (fb.units = { distance: "metric" });
+
+// ---- sleep ----------------------------------------------------------------
+export const sleep = (fb.sleep = emitter({ state: "asleep" }));
 
 // ---- haptics --------------------------------------------------------------
 fb.vibrations = [];
