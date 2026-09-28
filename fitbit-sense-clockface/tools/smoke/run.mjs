@@ -95,6 +95,7 @@ const ALLOWED = {
   text: ["text", "textAnchor", "letterSpacing"],
   image: ["href"],
   gradientRect: ["gradient"],
+  circle: ["cx", "cy", "r"],
   rect: [], g: [], svg: []
 };
 const STYLE_KEYS = ["fill", "fontFamily", "fontSize", "opacity", "display"];
@@ -204,7 +205,9 @@ check(label("time") === "12:58", `time renders 12h → "${label("time")}"`);
 check(label("date") === "WED23", `date renders → "${label("date")}"`);
 check(label("slot0-value") === "8,348", `steps formatted → "${label("slot0-value")}"`);
 check(label("slot2-value") === "1,359", `calories formatted → "${label("slot2-value")}"`);
-check(el("slot0-bar").width === Math.round(56 * 0.8348), "steps progress bar = 83%");
+const pillWidth = (id) => el(id).width + 2 * el(id + "-l").r;
+check(pillWidth("slot0-bar") === Math.round(54 * 0.8348), `steps pill bar = 83% (${pillWidth("slot0-bar")}px of 54)`);
+check(el("slot0-bar-r").cx + el("slot0-bar-r").r === el("slot0-track").x - el("slot0-track-l").r + pillWidth("slot0-bar"), "pill end cap sits at the fill edge");
 check(label("bat-text") === "84%", "battery % shown");
 check(fb.hrm && fb.hrm.activated, "heart-rate sensor running");
 check(fb.body && fb.body.activated, "body-presence sensor running");
@@ -212,7 +215,9 @@ check(fb.display.aodAllowed === true, "AOD requested (aodAllowed = true)");
 check(label("slot1-value") === "--", "HR shows placeholder before first reading");
 fb.hrm.heartRate = 78; fb.hrm.__emit("reading");
 check(label("slot1-value") === "78", "HR updates on sensor reading");
-check(!visible("slot1-bar"), "HR slot has no progress bar (no goal)");
+check(!visible("slot1-bar") && !visible("slot1-track") && !visible("slot1-track-l"), "HR slot has no progress bar (no goal)");
+check(el("slot1-icon").width === 40 && el("slot0-icon").width === 22, "heart icon larger than side icons");
+check(!visible("grp-battery"), "battery hidden (matches reference)");
 snapshot("1-normal");
 
 console.log("\nIdle redraw guard");
@@ -288,7 +293,7 @@ snapshot("4-normal-24h");
 // ------------------------------------------------------------ geometry ----
 console.log("\nGeometry (static bounds)");
 for (const [id, e] of Object.entries(fb.elements)) {
-  if (e.tag === "text" || e.tag === "g" || e.tag === "svg" || !visible(id)) continue;
+  if (e.tag === "text" || e.tag === "g" || e.tag === "svg" || e.tag === "circle" || !visible(id)) continue;
   const w = typeof e.width === "number" ? e.width : 0;
   const h = typeof e.height === "number" ? e.height : 0;
   if (e.x < 0 || e.y < 0 || e.x + w > W || e.y + h > H) check(false, `#${id} outside canvas`);
@@ -318,6 +323,8 @@ function toSvg(ns) {
       const w = e.width === "100%" ? W : e.width, h = e.height === "100%" ? H : e.height;
       if (id.endsWith("-hit")) return;
       body.push(`<rect x="${e.x}" y="${e.y}" width="${w}" height="${h}" fill="${e.style.fill || "#000"}"/>`);
+    } else if (n.tag === "circle" && e) {
+      body.push(`<circle cx="${e.cx}" cy="${e.cy}" r="${e.r}" fill="${e.style.fill || "#000"}"/>`);
     } else if (n.tag === "gradientRect") {
       const g = e.gradient;
       const r = Math.hypot(g.x2 - g.x1, g.y2 - g.y1);

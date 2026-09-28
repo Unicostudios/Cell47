@@ -6,7 +6,7 @@
  * use the `opacity` field on a type style instead.
  *
  * Typography comes in two flavours (see DESIGN.md → "Typography"):
- *   • Bitmap font (default): Barlow Semi Condensed, pre-rendered to PNG
+ *   • Bitmap font (default): Barlow Condensed / Semi Condensed, pre-rendered to PNG
  *     glyphs by tools/generate_glyphs.py. Sizes are baked in at generation
  *     time — change them there and run `npm run glyphs`.
  *   • Fitbit system font: "System-Light" / "System-Regular" / "System-Bold"
@@ -16,22 +16,25 @@ import * as GLYPHS from "./glyphs";
 
 export const USE_BITMAP_FONT = true;
 
-// Monochrome palette: pure black canvas, white type, a soft grey glow.
+// Monochrome palette matched to the reference photo (its teal glow and
+// progress fills translated to greys). For the original teal look, set
+// glowInner: "#2F5A5E" and progress: "#BFE4E7".
 export const COLORS = {
   // Canvas
   background: "#000000", // behind the glow, and all of AOD
-  glowInner: "#3A3A3A", // centre of the radial glow
+  glowInner: "#565656", // centre of the radial glow (low-centre, behind metrics)
   glowOuter: "#000000", // edge of the radial glow
 
   // Text
-  textPrimary: "#FFFFFF", // time
-  textSecondary: "#E8E8E8", // date, metric values
+  textPrimary: "#FFFFFF", // time, date
+  textSecondary: "#E6E6E6", // metric values
   textMuted: "#8A8A8A", // battery %
 
   // Icons & progress
-  icon: "#FFFFFF",
-  track: "#3A3A3A", // unfilled part of a progress bar
-  progress: "#D6D6D6", // filled part of a progress bar
+  icon: "#FFFFFF", // "bright" icons (heart)
+  iconDim: "#A8A8A8", // "dim" icons (steps, calories, …)
+  track: "#262626", // unfilled part of a progress bar
+  progress: "#DCDCDC", // filled part of a progress bar
   goalReached: "#FFFFFF", // bar once the goal is hit (brightens to white)
   accent: "#FFFFFF", // charging state
 
@@ -70,9 +73,9 @@ function type(glyphs, fontFamily, fontSize, letterSpacing, fill) {
 }
 
 export const TYPE = {
-  time: type(GLYPHS.time, FONTS.bold, 100, 1, COLORS.textPrimary),
-  date: type(GLYPHS.date, FONTS.bold, 26, 1, COLORS.textSecondary),
-  metric: type(GLYPHS.value, FONTS.regular, 24, 0, COLORS.textSecondary),
+  time: type(GLYPHS.time, FONTS.bold, 110, 1, COLORS.textPrimary),
+  date: type(GLYPHS.date, FONTS.bold, 26, 1, COLORS.textPrimary),
+  metric: type(GLYPHS.value, FONTS.regular, 22, 0, COLORS.textSecondary),
   battery: type(GLYPHS.battery, FONTS.regular, 16, 0, COLORS.textMuted),
 
   // AOD variants: lighter weight + dimmer colour = fewer lit pixels.
@@ -94,10 +97,10 @@ export const BACKGROUND = {
   image: "bg/background.jpg",
   gradient: {
     type: "radial",
-    x1: 210,
-    y1: 170,
-    x2: 360,
-    y2: 360,
+    x1: 168,
+    y1: 258,
+    x2: 300,
+    y2: 396,
     c1: COLORS.glowInner,
     c2: COLORS.glowOuter
   }

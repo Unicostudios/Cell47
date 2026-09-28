@@ -88,7 +88,7 @@ In `layout.js`, that becomes `time: { x: 28, y: 196, anchor: "start" }` (116 + 1
 
 | Asset | Size | File |
 |---|---|---|
-| Metric icons | 26 × 26 | `resources/icons/<name>.png` |
+| Metric icons | 22 × 22 (heart: 40 × 40) | `resources/icons/<name>.png` |
 | App icon | 80 × 80 | `resources/icon.png` |
 | Full background | 336 × 336 | `resources/bg/background.jpg` |
 | Font glyphs | generated, one per character | `resources/glyphs/<set>/<charCode>.png` (via `npm run glyphs`) |
@@ -100,14 +100,14 @@ Export at **1×**. Fitbit doesn't scale for density, and the image draws at the 
 The Sense gives each app a limited amount of memory, and images are decoded into RAM:
 
 - A full-screen 336×336 JPEG takes ~220 KB. That's fine for one image, but **avoid layering several**.
-- A 26×26 grayscale icon takes ~0.7 KB, so icons are practically free.
+- A 22×22 grayscale icon takes ~0.5 KB, so icons are practically free.
 - Prefer the vector gradient (`BACKGROUND.type = "gradient"`) over a raster background.
 
 ### Replacing an asset (step by step)
 
 1. In Figma, select the icon layer and use **Flatten**, so it's a single shape, white on transparent.
-2. Export as **PNG, 1×**, at exactly **26 × 26**.
-3. Convert it to grayscale with white on black. In Figma, put it on a 26×26 black frame and export the frame. Or use ImageMagick:
+2. Export as **PNG, 1×**, at exactly the icon's size (**22 × 22**, or **40 × 40** for the heart).
+3. Convert it to grayscale with white on black. In Figma, put it on a black frame of the same size and export the frame. Or use ImageMagick:
    `magick in.png -background black -alpha remove -colorspace Gray -depth 8 out.png`
 4. Save it over the existing file, e.g. `resources/icons/steps.png`, keeping the same name.
 5. Run `npm run preview` to check, then `npm run build`.
@@ -116,18 +116,18 @@ To use a **new** filename, update the `icon:` path in `app/data/metrics.js`.
 
 ## 6. Typography
 
-The face uses **Barlow Semi Condensed**, a free Google Font, as a **bitmap font**. `tools/generate_glyphs.py` renders each character to a grayscale PNG, and `app/ui/label.js` lays them out on the watch. In Figma, install Barlow Semi Condensed and design with the real font; what you see is what the watch shows.
+The face uses **Barlow Condensed** (time, date) and **Barlow Semi Condensed** (values), both free Google Fonts, as a **bitmap font**. `tools/generate_glyphs.py` renders each character to a grayscale PNG, and `app/ui/label.js` lays them out on the watch. In Figma, install both and design with the real fonts; what you see is what the watch shows.
 
 **Current type scale (px = Figma font size):**
 
 | Role | Figma style | Glyph set |
 |---|---|---|
-| Hero time | Barlow Semi Condensed SemiBold 120 | `time` |
-| Date | SemiBold 26, +1 letter-spacing, uppercase | `date` |
-| Metric value | Medium 25 | `value` |
-| Battery % | Medium 17 | `battery` |
-| AOD time | Light 108 | `timeAod` |
-| AOD date | Regular 22 | `dateAod` |
+| Hero time | Barlow Condensed SemiBold 136, centred | `time` |
+| Date | Barlow Condensed SemiBold 26, +1 letter-spacing, uppercase, centred | `date` |
+| Metric value | Barlow Semi Condensed Regular 23 | `value` |
+| Battery % (hidden) | Barlow Semi Condensed Medium 17 | `battery` |
+| AOD time | Barlow Condensed Light 120 | `timeAod` |
+| AOD date | Barlow Condensed Regular 24 | `dateAod` |
 
 **Changing type from a Figma design:**
 
@@ -177,7 +177,7 @@ When you have a new Figma design, send:
 
 1. A **336 × 336 PNG export** of the normal frame and the AOD frame.
 2. Ideally, the **Figma Inspect values** (X, Y, W, H, font size, colours) for each layer, or a link to the file.
-3. Any new icons as 26 × 26 grayscale PNGs (§5).
+3. Any new icons as grayscale PNGs at their final size (§5).
 
 Then tell me: *"Make the clock face look exactly like this."* I'll update `config/`, `resources/` and, if the structure changes (new elements, different slot count, new glyph sets), the matching `ui/` component and `index.view`. The `data/`, `modes/` and `core/` code stays as it is.
 

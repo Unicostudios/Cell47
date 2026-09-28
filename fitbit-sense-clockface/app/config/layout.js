@@ -14,35 +14,43 @@ export const CANVAS = { width: 336, height: 336 };
 // Keep critical content inside this box; the Sense glass has rounded corners.
 export const SAFE_AREA = { left: 24, top: 20, right: 312, bottom: 316 };
 
+// Composition follows the reference photo: centred date over a very large
+// centred time, then a row of three metric columns (side columns: small dim
+// icon + pill progress bar + value; centre column: large heart + value).
 export const NORMAL = {
-  // Battery indicator, top centre (the only edge not clipped by corners).
+  // Battery indicator, top centre. Hidden by default (settings.BATTERY.show)
+  // because the reference face has none; enable it there if you want it.
   battery: {
     visible: true,
-    // Icon drawn from rectangles (no image needed): shell + nub + level.
-    icon: { x: 133, y: 25, width: 22, height: 11, stroke: 2, nubWidth: 2, nubHeight: 5 },
-    text: { x: 162, y: 37, anchor: "start" }
+    // Icon drawn from rectangles (no image needed): outline + nub + level.
+    icon: { x: 133, y: 18, width: 22, height: 11, stroke: 2, nubWidth: 2, nubHeight: 5 },
+    text: { x: 162, y: 30, anchor: "start" }
   },
 
-  date: { visible: true, x: 32, y: 100, anchor: "start" },
+  date: { visible: true, x: 168, y: 56, anchor: "middle" },
 
-  time: { visible: true, x: 28, y: 200, anchor: "start" },
+  time: { visible: true, x: 168, y: 188, anchor: "middle" },
 
-  // Three metric "slots" along the bottom. Each slot = icon, progress bar,
-  // value and an invisible touch target. What each slot SHOWS is set in
-  // settings.js (SLOTS); here you only decide WHERE the slots sit.
+  // Metric columns. WHAT each column shows is set in settings.js (SLOTS);
+  // here you only decide WHERE and HOW BIG.
+  //   icon.tone: "dim" → COLORS.iconDim, "bright" → COLORS.icon
   slots: {
     visible: true,
-    centers: [70, 168, 266], // x centre of each slot
-    icon: { y: 226, size: 26 }, // top of icon; icons are square
-    bar: { y: 262, width: 56, height: 4 },
-    value: { y: 298 }, // baseline, anchored middle on the slot centre
-    hit: { y: 214, width: 96, height: 102 } // touch target, centred on slot
+    columns: [
+      { x: 93, icon: { y: 228, size: 22, tone: "dim" } },
+      { x: 168, icon: { y: 222, size: 40, tone: "bright" } },
+      { x: 243, icon: { y: 228, size: 22, tone: "dim" } }
+    ],
+    bar: { y: 263, width: 54, height: 8 }, // pill: ends are rounded
+    value: { y: 302 }, // baseline, centred on the column
+    hit: { y: 214, width: 74, height: 98 } // touch target, centred on column
   }
 };
 
 export const AOD = {
-  date: { visible: true, x: 168, y: 110, anchor: "middle" },
-  time: { visible: true, x: 168, y: 206, anchor: "middle" },
+  // Same centred composition as NORMAL, without the metric row.
+  date: { visible: true, x: 168, y: 96, anchor: "middle" },
+  time: { visible: true, x: 168, y: 214, anchor: "middle" },
 
   // OLED burn-in protection: the AOD text block moves by these offsets,
   // advancing one step per minute. Set to [[0, 0]] to disable.

@@ -20,17 +20,21 @@ import os
 from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = os.path.join(os.path.dirname(__file__), "..", "resources")
-SIZE = 26          # final icon size (px) — matches layout.js NORMAL.slots.icon.size
+# Final icon sizes (px) — match layout.js NORMAL.slots.columns[].icon.size.
+# The heart sits in the centre column at a larger size, like the reference.
+SIZES = {"heart": 40}
+DEFAULT_SIZE = 22
 SS = 8             # supersampling factor for smooth anti-aliased edges
 
 
 def canvas():
-    n = SIZE * SS
+    n = 64 * SS  # draw big, downsample in save()
     return Image.new("L", (n, n), 0), n
 
 
 def save(img, name):
-    out = img.resize((SIZE, SIZE), Image.LANCZOS)
+    size = SIZES.get(name[:-4], DEFAULT_SIZE)
+    out = img.resize((size, size), Image.LANCZOS)
     out.save(os.path.join(ROOT, "icons", name), optimize=True)
 
 

@@ -1,6 +1,6 @@
 # Sense Minimal: Fitbit Sense clock face
 
-A monochrome, minimalist clock face for the **Fitbit Sense** (336 × 336), built on the official Fitbit SDK 6.1. It's black and white with a soft grey glow, and all text is set in **Barlow Semi Condensed**. The time is the dominant element. The date sits above it, and three tappable metric slots run along the bottom. Each slot has an icon, a goal-progress bar and a value. A dim, burn-in-safe **Always-On Display** mode is included.
+A monochrome clock face for the **Fitbit Sense** (336 × 336), built on the official Fitbit SDK 6.1. Its composition follows the reference photo: a centred date over a very large centred time in **Barlow Condensed**, with three tappable metric columns underneath. Steps and calories each have a small icon, a pill-shaped goal bar and a value; heart rate in the centre has a larger heart. It's black and white with a soft grey glow low in the centre, and includes a dim, burn-in-safe **Always-On Display** mode.
 
 ![Preview: normal, alternate metrics after tapping, AOD, 24h](docs/preview.png)
 
@@ -12,7 +12,7 @@ A monochrome, minimalist clock face for the **Fitbit Sense** (336 × 336), built
 | Date / weekday | `Date` from the clock tick | when the day changes |
 | Steps, calories, distance, floors, AZM + goal bars | `user-activity` `today.adjusted` / `goals` | every minute + on wake |
 | Heart rate | `heart-rate` `HeartRateSensor` + `body-presence` | live, screen-on only |
-| Battery % | `power.battery` `change` event | when it changes |
+| Battery % (hidden by default, like the reference) | `power.battery` `change` event | when it changes |
 | AOD | `display.aodAvailable / aodAllowed / aodActive` | minute tick only |
 
 ---
@@ -84,14 +84,14 @@ fitbit-sense-clockface/
 │   ├── styles.css          # fallback styles only
 │   ├── widget.defs
 │   ├── icon.png            # 80×80 app icon (required size)
-│   ├── icons/*.png         # 26×26 grayscale metric icons (tintable)
+│   ├── icons/*.png         # grayscale metric icons, 22×22 (heart 40×40), tintable
 │   ├── glyphs/<set>/*.png  # bitmap font: one grayscale PNG per character
 │   └── bg/background.jpg   # optional raster background
 ├── tools/
 │   ├── smoke/              # headless test: real app code + mocked Fitbit APIs
 │   ├── generate_glyphs.py  # font file → glyph PNGs + glyphs.js
 │   ├── generate_icons.py   # regenerates the placeholder art
-│   └── fonts/              # Barlow Semi Condensed (SIL OFL 1.1)
+│   └── fonts/              # Barlow Condensed + Semi Condensed (SIL OFL 1.1)
 ├── DESIGN.md               # Figma → clock face handbook
 └── docs/preview.png
 ```
@@ -151,7 +151,7 @@ Every visual value lives in `app/config/`. For a full Figma workflow, see **[DES
 | Move something | `app/config/layout.js`: x/y/size per element; `NORMAL` and `AOD` are separate |
 | Change colours / fonts / sizes | `app/config/theme.js` |
 | Change what's shown / formats | `app/config/settings.js` |
-| Swap an icon | Replace the file in `resources/icons/` (same name, 26×26 grayscale PNG) |
+| Swap an icon | Replace the file in `resources/icons/` (same name and size: 22×22, heart 40×40, grayscale PNG) |
 | Use a raster background | `theme.js → BACKGROUND.type = "image"` and drop your file at `resources/bg/background.jpg` |
 | Add a new element | Add it to `resources/index.view` with an id, then style/position it in a `ui/` component |
 
@@ -173,22 +173,22 @@ Use `#RRGGBB`. Don't rely on alpha in hex values; set transparency with the `opa
 
 ## 9. Typography
 
-All text is drawn in **Barlow Semi Condensed**. Fitbit can't load font files, so the face uses a **bitmap font**: every character is pre-rendered as a small grayscale PNG, and `app/ui/label.js` lays the characters out and tints them with the theme colours.
+The time and date are drawn in **Barlow Condensed**, and metric values in **Barlow Semi Condensed**. Fitbit can't load font files, so the face uses a **bitmap font**: every character is pre-rendered as a small grayscale PNG, and `app/ui/label.js` lays the characters out and tints them with the theme colours.
 
 | Style | Weight | Size | Used for |
 |---|---|---|---|
-| `time` | SemiBold 600 | 120 | hero time |
-| `timeAod` | Light 300 | 108 | AOD time |
-| `date` | SemiBold 600 | 26 | date |
-| `dateAod` | Regular 400 | 22 | AOD date |
-| `value` | Medium 500 | 25 | metric values |
-| `battery` | Medium 500 | 17 | battery % |
+| `time` | Condensed SemiBold 600 | 136 | hero time |
+| `timeAod` | Condensed Light 300 | 120 | AOD time |
+| `date` | Condensed SemiBold 600 | 26 | date |
+| `dateAod` | Condensed Regular 400 | 24 | AOD date |
+| `value` | Semi Condensed Regular 400 | 23 | metric values |
+| `battery` | Semi Condensed Medium 500 | 17 | battery % (hidden by default) |
 
 - **Change sizes, weights or characters:** edit the `SETS` table in `tools/generate_glyphs.py`, then run `npm run glyphs`. That regenerates `resources/glyphs/` and `app/config/glyphs.js`.
 - **Use a different typeface:** put its `.ttf`/`.otf`/`.woff` file in `tools/fonts/`, point `SETS` at it, and run `npm run glyphs`.
 - **Change spacing and colour** (no regeneration needed): edit `letterSpacing` and `fill` in `TYPE` in `theme.js`.
 - **Go back to Fitbit's system font (Raiju):** set `USE_BITMAP_FONT = false` in `theme.js`. The system sizes come from `fontSize` in each `TYPE` style.
-- **Figma:** Barlow Semi Condensed is a free Google Font, so the Figma file can use the exact same font as the watch.
+- **Figma:** Barlow Condensed and Barlow Semi Condensed are free Google Fonts, so the Figma file can use the exact same fonts as the watch.
 
 ## 10. Add or remove metrics
 
@@ -205,7 +205,7 @@ export const SLOTS = [
 - **Remove a metric:** delete its id from the list.
 - **Use fewer slots:** use 1–3 lists, and set matching `layout.js → NORMAL.slots.centers`.
 - **Add a new metric type:** add an entry to `app/data/metrics.js` with `icon`, `value()`, an optional `goal()` and `format()`. Add its icon to `resources/icons/`, then reference its id in `SLOTS`. If the metric needs a new permission, add it to `package.json → fitbit.requestedPermissions`.
-- **Hide the battery:** set `settings.js → BATTERY.show = false`.
+- **Show the battery:** set `settings.js → BATTERY.show = true`. It's off by default, because the reference has none.
 
 ## 11. Debugging common problems
 

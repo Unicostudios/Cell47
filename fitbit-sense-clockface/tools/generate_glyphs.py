@@ -13,7 +13,8 @@ To change the typeface: drop a .ttf/.otf/.woff into tools/fonts/ and point
 the SETS table below at it, then run:   npm run glyphs
 Sizes are in screen px (1 design px = 1 Sense px), same as Figma font size.
 
-Default font: Barlow Semi Condensed (SIL OFL 1.1, see tools/fonts/.../OFL.txt).
+Default fonts: Barlow Condensed (time, date) and Barlow Semi Condensed
+(values), both SIL OFL 1.1 — see tools/fonts/*/OFL.txt.
 Requires: pip install pillow
 """
 import json
@@ -25,11 +26,15 @@ from PIL import Image, ImageDraw, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, "..")
-FONT_DIR = os.path.join(HERE, "fonts", "barlow-semi-condensed")
+FONTS = os.path.join(HERE, "fonts")
 
 
-def font(weight):
-    return os.path.join(FONT_DIR, "barlow-semi-condensed-latin-%d-normal.woff" % weight)
+def condensed(weight):
+    return os.path.join(FONTS, "barlow-condensed", "barlow-condensed-latin-%d-normal.woff" % weight)
+
+
+def semi(weight):
+    return os.path.join(FONTS, "barlow-semi-condensed", "barlow-semi-condensed-latin-%d-normal.woff" % weight)
 
 
 DIGITS = "0123456789"
@@ -38,12 +43,12 @@ LOWER = UPPER.lower()
 
 # name → (font file, size px, characters)
 SETS = {
-    "time":     (font(600), 120, DIGITS + ":"),
-    "timeAod":  (font(300), 108, DIGITS + ":"),
-    "date":     (font(600), 26, UPPER + LOWER + DIGITS + " ,./-:"),
-    "dateAod":  (font(400), 22, UPPER + LOWER + DIGITS + " ,./-:"),
-    "value":    (font(500), 25, DIGITS + ",.- kmi"),
-    "battery":  (font(500), 17, DIGITS + "%-"),
+    "time":     (condensed(600), 136, DIGITS + ":"),
+    "timeAod":  (condensed(300), 120, DIGITS + ":"),
+    "date":     (condensed(600), 26, UPPER + LOWER + DIGITS + " ,./-:"),
+    "dateAod":  (condensed(400), 24, UPPER + LOWER + DIGITS + " ,./-:"),
+    "value":    (semi(400), 23, DIGITS + ",.- kmi"),
+    "battery":  (semi(500), 17, DIGITS + "%-"),
 }
 
 

@@ -36,7 +36,7 @@ export const SLOTS = [
 ];
 
 export const BATTERY = {
-  show: true,
+  show: false, // the reference face has no battery; set true to show it top-centre
   lowThreshold: 20 // % at or below which the battery turns COLORS.batteryLow
 };
 
