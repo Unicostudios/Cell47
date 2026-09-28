@@ -212,6 +212,7 @@ export const SLOTS = [
 | Symptom | Cause / fix |
 |---|---|
 | `npm install` fails on `keytar` / `libsecret-1` | Linux: install `libsecret-1-dev`, then reinstall. Only the CLI needs it; `npm install --ignore-scripts` still lets `npm run build` work. |
+| `npx fitbit` crashes with `MODULE_NOT_FOUND … @openid/appauth/built/…` | The CLI's login library published an incompatible 1.4. `package.json → overrides` pins it to 1.3.2. Delete `node_modules` and `package-lock.json`, then run `npm install` again. |
 | `Missing element #xyz in resources/index.view` | An id was renamed or removed in `index.view` but is still used in `app/ui/`. Keep ids in sync. |
 | `Unknown metric id in settings.SLOTS` | A typo in `SLOTS`, or the id is missing from `data/metrics.js`. |
 | Values show `--` | The permission is not granted. Re-grant it in **Fitbit app → clock face → Permissions**. HR also shows `--` when the watch is off-wrist. |

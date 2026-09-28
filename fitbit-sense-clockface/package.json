@@ -38,5 +38,9 @@
       }
     },
     "defaultLanguage": "en-US"
+  },
+  "overrides": {
+    "@openid/appauth": "1.3.2",
+    "keytar": "7.9.0"
   }
 }
