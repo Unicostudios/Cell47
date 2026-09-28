@@ -1,0 +1,7 @@
+{
+  "name": "ops-voice",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Private MCP connector: ElevenLabs text-to-speech for the Ops Desk dashboard",
+  "engines": { "node": ">=20" }
+}
