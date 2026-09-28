@@ -1,0 +1,21 @@
+/*
+ * Fallback styles only. The real colours, fonts, sizes and positions are
+ * applied at startup from app/config/*.js so there is one source of truth.
+ * These defaults just keep the view sensible if JS fails to start.
+ */
+text {
+  font-family: System-Regular;
+  font-size: 24;
+  fill: #ffffff;
+}
+
+#bg-solid {
+  width: 100%;
+  height: 100%;
+  fill: #000000;
+}
+
+#time {
+  font-family: System-Bold;
+  font-size: 100;
+}

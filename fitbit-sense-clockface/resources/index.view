@@ -1,0 +1,58 @@
+<!--
+  Element skeleton for the clock face (336 × 336).
+  Positions, colours and fonts are applied from app/config/*.js at startup,
+  so this file only defines WHAT exists and the paint ORDER (later = on top).
+  Every id here is looked up by app/ui/*.js — keep ids in sync.
+-->
+<svg id="root">
+  <!-- Background layers -->
+  <rect id="bg-solid" x="0" y="0" width="100%" height="100%" />
+  <gradientRect id="bg-gradient" x="0" y="0" width="100%" height="100%"
+    gradient-type="radial"
+    gradient-x1="214" gradient-y1="150" gradient-x2="336" gradient-y2="336"
+    gradient-color1="#2B5F64" gradient-color2="#020405" />
+  <image id="bg-image" x="0" y="0" width="336" height="336" display="none" />
+
+  <!-- Status: battery -->
+  <g id="grp-battery">
+    <rect id="bat-top" x="0" y="0" width="0" height="0" />
+    <rect id="bat-bottom" x="0" y="0" width="0" height="0" />
+    <rect id="bat-left" x="0" y="0" width="0" height="0" />
+    <rect id="bat-right" x="0" y="0" width="0" height="0" />
+    <rect id="bat-nub" x="0" y="0" width="0" height="0" />
+    <rect id="bat-level" x="0" y="0" width="0" height="0" />
+    <text id="bat-text" x="0" y="0">--</text>
+  </g>
+
+  <!-- Time & date -->
+  <text id="date" x="34" y="104">--</text>
+  <text id="time" x="28" y="196">--:--</text>
+
+  <!-- Metric slots -->
+  <g id="grp-metrics">
+    <g id="slot0">
+      <image id="slot0-icon" x="0" y="0" width="26" height="26" />
+      <rect id="slot0-track" x="0" y="0" width="0" height="0" />
+      <rect id="slot0-bar" x="0" y="0" width="0" height="0" />
+      <text id="slot0-value" x="0" y="0" text-anchor="middle">--</text>
+      <!-- invisible touch target; pointer-events lets it receive taps -->
+      <rect id="slot0-hit" x="0" y="0" width="0" height="0" opacity="0" pointer-events="visible" />
+    </g>
+    <g id="slot1">
+      <image id="slot1-icon" x="0" y="0" width="26" height="26" />
+      <rect id="slot1-track" x="0" y="0" width="0" height="0" />
+      <rect id="slot1-bar" x="0" y="0" width="0" height="0" />
+      <text id="slot1-value" x="0" y="0" text-anchor="middle">--</text>
+      <!-- invisible touch target; pointer-events lets it receive taps -->
+      <rect id="slot1-hit" x="0" y="0" width="0" height="0" opacity="0" pointer-events="visible" />
+    </g>
+    <g id="slot2">
+      <image id="slot2-icon" x="0" y="0" width="26" height="26" />
+      <rect id="slot2-track" x="0" y="0" width="0" height="0" />
+      <rect id="slot2-bar" x="0" y="0" width="0" height="0" />
+      <text id="slot2-value" x="0" y="0" text-anchor="middle">--</text>
+      <!-- invisible touch target; pointer-events lets it receive taps -->
+      <rect id="slot2-hit" x="0" y="0" width="0" height="0" opacity="0" pointer-events="visible" />
+    </g>
+  </g>
+</svg>

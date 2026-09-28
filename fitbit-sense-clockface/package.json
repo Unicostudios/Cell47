@@ -1,0 +1,41 @@
+{
+  "name": "sense-minimal-clockface",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "Minimal premium clock face for Fitbit Sense (336x336).",
+  "scripts": {
+    "build": "fitbit-build",
+    "debug": "fitbit",
+    "smoke": "node tools/smoke/run.mjs",
+    "preview": "node tools/smoke/run.mjs --render",
+    "icons": "python3 tools/generate_icons.py",
+    "test": "node tools/smoke/run.mjs"
+  },
+  "devDependencies": {
+    "@fitbit/sdk": "~6.1.0",
+    "@fitbit/sdk-cli": "^1.7.3",
+    "esbuild": "^0.25.12"
+  },
+  "fitbit": {
+    "appUUID": "0b7c4f0e-5b8d-4a57-9c3e-4e2d7a1f5c47",
+    "appType": "clockface",
+    "appDisplayName": "Sense Minimal",
+    "iconFile": "resources/icon.png",
+    "wipeColor": "",
+    "requestedPermissions": [
+      "access_activity",
+      "access_heart_rate",
+      "access_aod"
+    ],
+    "buildTargets": [
+      "vulcan"
+    ],
+    "i18n": {
+      "en-US": {
+        "name": "Sense Minimal"
+      }
+    },
+    "defaultLanguage": "en-US"
+  }
+}
