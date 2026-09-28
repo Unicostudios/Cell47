@@ -303,15 +303,29 @@ check(label("time") === "20:48", "24h format honoured");
 snapshot("4-normal-24h");
 
 console.log("\nDashboard sync (watch → phone)");
-check(timers.some((t) => !t.once && t.ms === 15 * 60 * 1000), "sync scheduled every 15 minutes");
+check(timers.some((t) => !t.once && t.ms === 10 * 60 * 1000), "sync scheduled every 10 minutes");
 timers.filter((t) => t.once).forEach((t) => t.fn());
 await Promise.resolve();
-check(fb.outbox.length === 1, "stats queued for the phone");
-const sent = fb.outbox[0] && fb.outbox[0].data;
+check(fb.outbox.length >= 1, "stats queued for the phone");
+const sent = fb.outbox[fb.outbox.length - 1] && fb.outbox[fb.outbox.length - 1].data;
 check(sent && sent.steps === 8420 && sent.calories === 1359 && "sleepMinutes" in sent && sent.t > 0, "payload has steps, calories, sleep, timestamp");
-timers.filter((t) => !t.once).forEach((t) => t.fn());
+const queued = fb.outbox.length;
+timers.filter((t) => !t.once && t.ms === 10 * 60 * 1000).forEach((t) => t.fn());
 await Promise.resolve();
-check(fb.outbox.length === 1, "unchanged stats are not re-sent");
+check(fb.outbox.length === queued, "unchanged stats are not re-sent");
+now = new RealDate(now.getTime() + 31 * 60 * 1000);
+timers.filter((t) => !t.once && t.ms === 10 * 60 * 1000).forEach((t) => t.fn());
+await Promise.resolve();
+check(fb.outbox.length === queued + 1, "heartbeat re-sends after 30 quiet minutes");
+fb.display.on = false; fb.display.__emit("change");
+fb.display.on = true; fb.display.__emit("change");
+await Promise.resolve();
+check(fb.outbox.length === queued + 1, "wrist raise right after a send is throttled");
+now = new RealDate(now.getTime() + 4 * 60 * 1000);
+fb.display.on = false; fb.display.__emit("change");
+fb.display.on = true; fb.display.__emit("change");
+await Promise.resolve();
+check(fb.outbox.length === queued + 2, "wrist raise sends fresh stats");
 
 // ------------------------------------------------------------ geometry ----
 console.log("\nGeometry (static bounds)");

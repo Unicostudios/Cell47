@@ -48,7 +48,12 @@ export const SYNC = {
   // Send stats to the phone → your Notion "Fitbit Stats" page → Ops Desk.
   // Setup: Fitbit app → this clock face → Settings (README "Dashboard sync").
   enabled: true,
-  intervalMinutes: 15
+  intervalMinutes: 10,
+  // Send even if nothing changed after this long, so the dashboard never
+  // looks stale just because the numbers were steady (e.g. overnight).
+  heartbeatMinutes: 30,
+  // Also send when you raise your wrist, at most this often.
+  onWakeMinMinutes: 3
 };
 
 export const BATTERY = {
