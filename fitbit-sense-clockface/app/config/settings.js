@@ -47,7 +47,9 @@ export const INTERACTION = {
 
 export const AOD_SETTINGS = {
   // Requests Always-On Display support. Needs the watch's AOD setting ON and
-  // the (restricted) "access_aod" permission. Falls back cleanly otherwise.
+  // the restricted "access_aod" permission, which Fitbit only grants to
+  // partners — sideloading an app that requests it fails, so package.json
+  // leaves it out. Until it's granted this mode stays off automatically.
   enabled: true,
   showDate: true
 };

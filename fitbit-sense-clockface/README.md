@@ -219,7 +219,8 @@ export const SLOTS = [
 | A character is missing or shows a gap | It isn't in that glyph set. Add it to `SETS` in `tools/generate_glyphs.py` and run `npm run glyphs`. The `fitbit$ logs` output names the missing glyph. |
 | Icon appears as a solid square | The PNG is RGB/RGBA, not **grayscale**. Re-export it as 8-bit grayscale (white = visible). |
 | Steps lag by up to a minute | This is by design: activity is read on each minute tick and on wake, to save battery. |
-| AOD never shows the face | AOD must be on under *Watch Settings → Display → Always-on display*. Also, `access_aod` is a **restricted** permission; see "Limitations". |
+| AOD never shows the face | Expected: `access_aod` is partner-only, so it isn't requested (see "Limitations"). |
+| `Install failed: … internal only permission` | A restricted permission (such as `access_aod`) is listed in `package.json → requestedPermissions`. Remove it. |
 | Developer Bridge won't connect | Put the watch on its charger. Toggle the bridge on both the phone and the watch. Make sure the phone and computer are online and signed in to the same account. |
 | Text clipped at the corners | Stay inside `SAFE_AREA` in `layout.js`, and remember text `y` is the **baseline**. |
 | `console.log` output | Run `fitbit$ logs` in the CLI shell. |
@@ -230,7 +231,7 @@ export const SLOTS = [
 
 These were checked against the SDK 6.1 toolchain source and API surface. Nothing is faked; each item notes the closest supported alternative.
 
-1. **Always-On Display is a restricted permission.** SDK 6.1 lists `access_aod` as *"[Restricted] Always-on Display"*. The code requests it and only enables AOD when `display.aodAvailable && me.permissions.granted("access_aod")`. If Fitbit doesn't grant it (for example, a Gallery submission without approval), the face falls back cleanly: the screen turns off as normal. The AOD code path is fully implemented and unit-tested with mocks, but whether a sideloaded build gets the permission is decided by Fitbit's servers, not by this code.
+1. **Always-On Display is partner-only.** SDK 6.1 lists `access_aod` as *"[Restricted] Always-on Display"*. On a real Sense, a sideloaded app that requests it is rejected: *"Install failed: … you used an internal only permission."* So `package.json` does **not** request it. AOD mode is still fully implemented and tested; it switches on automatically if the permission is ever granted. It only activates when `display.aodAvailable && me.permissions.granted("access_aod")`. To try it, for example if Fitbit approves your app, add `"access_aod"` back to `requestedPermissions`. Without it, the screen turns off normally.
 2. **Custom fonts can't be loaded.** Fitbit only has its system fonts. This face works around that with a bitmap font (pre-rendered PNG glyphs), which is why Barlow works. The catch: sizes are fixed when the glyphs are generated, and there's no kerning, only per-character advance widths.
 3. **Activity data has no change event.** `user-activity` can only be polled. The face reads it once a minute and on wake, instead of every second.
 4. **No settings page yet.** A phone-side settings UI (colour pickers and similar) needs a companion + settings component plus messaging, which is a meaningful memory and complexity cost. The values are compile-time config for now. The architecture leaves room to add one later: `settings.js` values would be overridden at runtime.
