@@ -7,10 +7,10 @@
   "scripts": {
     "build": "fitbit-build",
     "debug": "fitbit",
-    "smoke": "node tools/smoke/run.mjs",
+    "smoke": "node tools/smoke/run.mjs && node tools/smoke/companion.mjs",
     "preview": "node tools/smoke/run.mjs --render",
     "icons": "python3 tools/generate_icons.py",
-    "test": "node tools/smoke/run.mjs",
+    "test": "node tools/smoke/run.mjs && node tools/smoke/companion.mjs",
     "glyphs": "python3 tools/generate_glyphs.py"
   },
   "devDependencies": {
@@ -27,7 +27,8 @@
     "requestedPermissions": [
       "access_activity",
       "access_heart_rate",
-      "access_sleep"
+      "access_sleep",
+      "access_internet"
     ],
     "buildTargets": [
       "vulcan"

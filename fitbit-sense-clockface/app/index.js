@@ -14,6 +14,7 @@ import { formatTime } from "./core/time";
 import { initHeartRate } from "./data/heartRate";
 import { initBattery } from "./data/battery";
 import { initSleep } from "./data/sleep";
+import { initSync } from "./data/sync";
 import { createFace } from "./ui/face";
 import { MAX_ROWS } from "./ui/stats";
 import { bindRowTaps } from "./ui/interaction";
@@ -38,6 +39,7 @@ const aod = createAodMode(face, timeText);
 initBattery(face.battery.update);
 initHeartRate(normal.onHeartRate);
 initSleep(normal.onSleep);
+initSync();
 
 bindRowTaps(face.stats, STATS, selection, function (index) {
   normal.onRowTapped(index);

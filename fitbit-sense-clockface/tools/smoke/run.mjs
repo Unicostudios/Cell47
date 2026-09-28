@@ -41,6 +41,8 @@ const MODULES = {
   "user-settings": "export const preferences = m.preferences; export const units = m.units;",
   haptics: "export const vibration = m.vibration;",
   sleep: "export default m.sleep;",
+  "file-transfer": "export const outbox = m.outbox;",
+  cbor: "export const encode = m.cborEncode;",
   fs: "export const existsSync = m.existsSync, readFileSync = m.readFileSync, writeFileSync = m.writeFileSync;"
 };
 const mocksPath = path.join(HERE, "mocks.js");
@@ -149,6 +151,10 @@ globalThis.Date = class extends RealDate {
   constructor(...args) { if (args.length) super(...args); else super(now.getTime()); }
   static now() { return now.getTime(); }
 };
+// Capture the sync timers instead of letting them run in real time.
+const timers = [];
+globalThis.setTimeout = (fn, ms) => { timers.push({ fn, ms, once: true }); return timers.length; };
+globalThis.setInterval = (fn, ms) => { timers.push({ fn, ms, once: false }); return timers.length; };
 
 // The app runs at load time, so the mock DOM must exist before require().
 globalThis.__fb.elements = els;
@@ -295,6 +301,17 @@ now = new RealDate(2026, 9, 11, 20, 47, 0);
 tick();
 check(label("time") === "20:48", "24h format honoured");
 snapshot("4-normal-24h");
+
+console.log("\nDashboard sync (watch → phone)");
+check(timers.some((t) => !t.once && t.ms === 15 * 60 * 1000), "sync scheduled every 15 minutes");
+timers.filter((t) => t.once).forEach((t) => t.fn());
+await Promise.resolve();
+check(fb.outbox.length === 1, "stats queued for the phone");
+const sent = fb.outbox[0] && fb.outbox[0].data;
+check(sent && sent.steps === 8420 && sent.calories === 1359 && "sleepMinutes" in sent && sent.t > 0, "payload has steps, calories, sleep, timestamp");
+timers.filter((t) => !t.once).forEach((t) => t.fn());
+await Promise.resolve();
+check(fb.outbox.length === 1, "unchanged stats are not re-sent");
 
 // ------------------------------------------------------------ geometry ----
 console.log("\nGeometry (static bounds)");

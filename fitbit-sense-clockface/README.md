@@ -107,7 +107,7 @@ The data flow runs one way: **data → modes → ui**. `ui/` never imports a sen
 npm run build          # → build/app.fba
 ```
 
-Two warnings are expected, *"built without a companion component"* and *"…without a settings component"*. This face needs no phone-side code. See "Limitations" for why.
+The build produces the watch app, a phone companion and a settings page (used for dashboard sync).
 
 Before building on the watch, you can run the local checks:
 
@@ -235,6 +235,23 @@ export const STATS = [
 | `console.log` output | Run `fitbit$ logs` in the CLI shell. |
 
 ---
+
+## Dashboard sync (Notion → Ops Desk)
+
+Optional: the face sends your stats to a Notion page that the Ops Desk dashboard reads.
+
+```
+watch (app/data/sync.js) ──file transfer──▶ phone (companion/index.js) ──HTTPS──▶ Notion "Fitbit Stats" page ──▶ Ops Desk "Health" card
+```
+
+- **What's sent:** steps, calories, heart rate, sleep minutes, active minutes, distance, and a timestamp. It goes every 15 minutes, only when a value changed.
+- **Where it goes:** only to `api.notion.com`, using the Notion key you paste into the face's settings in the Fitbit app. The key never leaves your phone.
+- **Setup:**
+  1. At notion.so/my-integrations, create an internal integration and copy its secret.
+  2. On the **Fitbit Stats** page, open **⋯ → Connections** and add that integration.
+  3. In the Fitbit app, go to **Clock Faces → Sense Minimal → Settings** and paste the secret.
+- **Turn it off:** set `settings.js → SYNC.enabled = false`, or revoke the integration in Notion.
+- **Check it:** the settings screen shows "Last synced …" or the exact error.
 
 ## Limitations (Fitbit SDK / Sense)
 

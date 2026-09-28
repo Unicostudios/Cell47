@@ -78,6 +78,17 @@ export const units = (fb.units = { distance: "metric" });
 // ---- sleep ----------------------------------------------------------------
 export const sleep = (fb.sleep = emitter({ state: "asleep" }));
 
+// ---- file-transfer / cbor (watch side) ------------------------------------
+fb.outbox = [];
+export const outbox = {
+  enqueue: function (name, data) {
+    fb.outbox.push({ name: name, data: data });
+    return Promise.resolve({ name: name, readyState: "pending" });
+  }
+};
+// Test stand-in: keep the object as-is so assertions can read it.
+export function cborEncode(obj) { return obj; }
+
 // ---- haptics --------------------------------------------------------------
 fb.vibrations = [];
 export const vibration = { start: function (p) { fb.vibrations.push(p); return true; }, stop: function () {} };

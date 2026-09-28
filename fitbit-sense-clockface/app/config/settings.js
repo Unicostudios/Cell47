@@ -44,6 +44,13 @@ export const SLEEP = {
   windowHours: 20
 };
 
+export const SYNC = {
+  // Send stats to the phone → your Notion "Fitbit Stats" page → Ops Desk.
+  // Setup: Fitbit app → this clock face → Settings (README "Dashboard sync").
+  enabled: true,
+  intervalMinutes: 15
+};
+
 export const BATTERY = {
   show: false, // the reference face has no battery; set true to show it top-centre
   lowThreshold: 20 // % at or below which the battery turns COLORS.batteryLow
