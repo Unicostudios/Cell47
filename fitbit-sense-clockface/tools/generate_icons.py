@@ -130,20 +130,20 @@ def radial_glow(w, h, cx, cy, radius, inner, outer):
 def app_icon():
     # 80×80 colour icon shown in the Fitbit app's clock-face list.
     n = 80 * SS
-    img = radial_glow(80, 80, 52, 34, 70, (43, 95, 100), (2, 4, 5)).resize((n, n), Image.BICUBIC)
+    img = radial_glow(80, 80, 52, 34, 70, (58, 58, 58), (0, 0, 0)).resize((n, n), Image.BICUBIC)
     d = ImageDraw.Draw(img)
     # two bold bars = abstract "time" block, one thin bar = metric row
     d.rounded_rectangle([n * 0.18, n * 0.30, n * 0.82, n * 0.52], radius=n * 0.04, fill=(255, 255, 255))
-    d.rounded_rectangle([n * 0.18, n * 0.18, n * 0.48, n * 0.24], radius=n * 0.02, fill=(216, 228, 229))
+    d.rounded_rectangle([n * 0.18, n * 0.18, n * 0.48, n * 0.24], radius=n * 0.02, fill=(232, 232, 232))
     for i, cx in enumerate((0.26, 0.5, 0.74)):
         d.rounded_rectangle([n * (cx - 0.08), n * 0.66, n * (cx + 0.08), n * 0.70],
-                            radius=n * 0.02, fill=(191, 228, 231) if i != 1 else (90, 110, 112))
+                            radius=n * 0.02, fill=(214, 214, 214) if i != 1 else (90, 90, 90))
     img.resize((80, 80), Image.LANCZOS).save(os.path.join(ROOT, "icon.png"), optimize=True)
 
 
 def background():
     # Example raster background (only used if theme.BACKGROUND.type = "image").
-    img = radial_glow(336, 336, 214, 150, 250, (43, 95, 100), (2, 4, 5))
+    img = radial_glow(336, 336, 214, 150, 250, (58, 58, 58), (0, 0, 0))
     img = img.filter(ImageFilter.GaussianBlur(1))
     img.save(os.path.join(ROOT, "bg", "background.jpg"), quality=88, optimize=True)
 

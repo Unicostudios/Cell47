@@ -178,6 +178,18 @@ function setDisplay(on, aod) {
   fb.display.on = on; fb.display.aodActive = aod;
   fb.display.__emit("change");
 }
+// Read a label's current string: bitmap glyph slots if in use, else <text>.
+function label(id) {
+  const out = [];
+  for (let i = 0; el(`${id}-g${i}`); i++) {
+    const g = el(`${id}-g${i}`);
+    if (g.style.display === "none") continue;
+    out.push({ x: g.x, ch: String.fromCharCode(Number(g.href.match(/(\d+)\.png$/)[1])) });
+  }
+  if (!out.length) return el(id).text;
+  // Re-insert spaces from horizontal gaps is unnecessary for asserts: compare without spaces.
+  return out.sort((a, b) => a.x - b.x).map((o) => o.ch).join("");
+}
 const click = (id) => (el(id).handlers.click || []).forEach((f) => f({}));
 function snapshot(name) {
   if (!RENDER) return;
@@ -188,48 +200,48 @@ const shots = [];
 
 console.log("\nNORMAL mode");
 check(fb.clock.granularity === "minutes", "clock ticks per minute");
-check(el("time").text === "12:58", `time renders 12h → "${el("time").text}"`);
-check(el("date").text === "WED 23", `date renders → "${el("date").text}"`);
-check(el("slot0-value").text === "8,348", `steps formatted → "${el("slot0-value").text}"`);
-check(el("slot2-value").text === "1,359", `calories formatted → "${el("slot2-value").text}"`);
+check(label("time") === "12:58", `time renders 12h → "${label("time")}"`);
+check(label("date") === "WED23", `date renders → "${label("date")}"`);
+check(label("slot0-value") === "8,348", `steps formatted → "${label("slot0-value")}"`);
+check(label("slot2-value") === "1,359", `calories formatted → "${label("slot2-value")}"`);
 check(el("slot0-bar").width === Math.round(56 * 0.8348), "steps progress bar = 83%");
-check(el("bat-text").text === "84%", "battery % shown");
+check(label("bat-text") === "84%", "battery % shown");
 check(fb.hrm && fb.hrm.activated, "heart-rate sensor running");
 check(fb.body && fb.body.activated, "body-presence sensor running");
 check(fb.display.aodAllowed === true, "AOD requested (aodAllowed = true)");
-check(el("slot1-value").text === "--", "HR shows placeholder before first reading");
+check(label("slot1-value") === "--", "HR shows placeholder before first reading");
 fb.hrm.heartRate = 78; fb.hrm.__emit("reading");
-check(el("slot1-value").text === "78", "HR updates on sensor reading");
+check(label("slot1-value") === "78", "HR updates on sensor reading");
 check(!visible("slot1-bar"), "HR slot has no progress bar (no goal)");
 snapshot("1-normal");
 
 console.log("\nIdle redraw guard");
-const before = el("slot0-value").text;
+const before = label("slot0-value");
 fb.hrm.__emit("reading"); // same bpm again
-check(el("slot1-value").text === "78" && el("slot0-value").text === before, "same HR value → no redraw");
+check(label("slot1-value") === "78" && label("slot0-value") === before, "same HR value → no redraw");
 
 console.log("\nTouch");
 click("slot0-hit");
-check(el("slot0-value").text === "5.2 km", `tap cycles steps → distance ("${el("slot0-value").text}")`);
+check(label("slot0-value") === "5.2km", `tap cycles steps → distance ("${label("slot0-value")}")`);
 check(fb.vibrations.length === 1, "haptic bump on tap");
 check(JSON.parse(fb.files["face-state.json"]).sel[0] === 1, "selection persisted");
 click("slot2-hit");
-check(el("slot2-value").text === "22", "tap cycles calories → AZM");
-check(el("slot2-bar").style.fill === "#7FF0C0", "goal reached → bar recoloured");
+check(label("slot2-value") === "22", "tap cycles calories → AZM");
+check(el("slot2-bar").style.fill === "#FFFFFF", "goal reached → bar brightens to white");
 snapshot("2-normal-alt");
 click("slot0-hit"); click("slot0-hit"); click("slot2-hit");
-check(el("slot0-value").text === "8,348" && el("slot2-value").text === "1,359", "cycling wraps around");
+check(label("slot0-value") === "8,348" && label("slot2-value") === "1,359", "cycling wraps around");
 check((el("slot1-hit").handlers.click || []).length === 0, "single-metric slot ignores taps");
 
 console.log("\nMinute tick");
 fb.today.adjusted.steps = 8420;
 tick();
-check(el("time").text === "12:59", "time advances on tick");
-check(el("slot0-value").text === "8,420", "steps refresh on tick");
+check(label("time") === "12:59", "time advances on tick");
+check(label("slot0-value") === "8,420", "steps refresh on tick");
 
 console.log("\nBattery");
 fb.battery.chargeLevel = 15; fb.battery.__emit("change");
-check(el("bat-text").text === "15%" && el("bat-level").style.fill === "#FF6B5B", "low battery turns red");
+check(label("bat-text") === "15%" && el("bat-level").style.fill === "#FFFFFF", "low battery brightens to white");
 fb.battery.chargeLevel = 84; fb.battery.__emit("change");
 
 console.log("\nAOD mode");
@@ -237,15 +249,15 @@ setDisplay(true, true);
 check(!fb.hrm.activated && !fb.body.activated, "sensors stopped in AOD");
 check(!visible("grp-metrics") && !visible("grp-battery"), "metrics + battery hidden");
 check(!visible("bg-gradient"), "glow hidden (pure black)");
-check(visible("time") && visible("date"), "time + date visible");
-check(el("time").style.fontFamily === "System-Regular", "AOD uses lighter weight");
-const p0 = [el("time").x, el("time").y];
+check(visible("time-grp") && visible("date-grp") && visible("time-g0"), "time + date visible");
+check(el("time-g0").href.indexOf("glyphs/timeAod/") === 0, "AOD uses the light glyph set");
+const p0 = [el("time-g0").x, el("time-g0").y];
 tick();
-check(el("time").x !== p0[0] || el("time").y !== p0[1], "burn-in offset moves text each minute");
-check(el("time").text === "1:00", `time still ticks in AOD ("${el("time").text}")`);
+check(el("time-g0").x !== p0[0] || el("time-g0").y !== p0[1], "burn-in offset moves text each minute");
+check(label("time") === "1:00", `time still ticks in AOD ("${label("time")}")`);
 snapshot("3-aod");
 fb.hrm.heartRate = 90; fb.hrm.__emit("reading");
-check(el("slot1-value").text === "78", "HR readings ignored while in AOD");
+check(label("slot1-value") === "78", "HR readings ignored while in AOD");
 
 console.log("\nOFF");
 setDisplay(false, false);
@@ -259,18 +271,18 @@ setDisplay(true, false);
 check(fb.clock.granularity === "minutes", "clock restarted");
 check(fb.hrm.activated, "HR restarted");
 check(visible("grp-metrics") && visible("bg-gradient"), "full layout restored");
-check(el("time").style.fontFamily === "System-Bold", "normal typography restored");
-check(el("time").text === "12:05" && el("date").text === "THU 24", "time/date refreshed immediately on wake");
+check(el("time-g0").href.indexOf("glyphs/time/") === 0, "normal typography restored");
+check(label("time") === "12:05" && label("date") === "THU24", "time/date refreshed immediately on wake");
 
 console.log("\nOff-wrist");
 fb.body.present = false; fb.body.__emit("reading");
-check(el("slot1-value").text === "--", "off-wrist → HR placeholder");
+check(label("slot1-value") === "--", "off-wrist → HR placeholder");
 
 console.log("\n24h clock");
 fb.preferences.clockDisplay = "24h";
 now = new RealDate(2026, 8, 24, 20, 47, 0);
 tick();
-check(el("time").text === "20:48", "24h format honoured");
+check(label("time") === "20:48", "24h format honoured");
 snapshot("4-normal-24h");
 
 // ------------------------------------------------------------ geometry ----
@@ -282,6 +294,16 @@ for (const [id, e] of Object.entries(fb.elements)) {
   if (e.x < 0 || e.y < 0 || e.x + w > W || e.y + h > H) check(false, `#${id} outside canvas`);
 }
 check(true, "all shapes/images within 336×336");
+const SAFE = { left: 24, top: 20, right: 312, bottom: 316 };
+let glyphOk = true;
+for (const [id, e] of Object.entries(fb.elements)) {
+  if (!/-g\d+$/.test(id) || !visible(id)) continue;
+  if (e.x < SAFE.left || e.y < SAFE.top || e.x + e.width > SAFE.right || e.y + e.height > SAFE.bottom) {
+    check(false, `glyph #${id} outside safe area [${e.x},${e.y} ${e.width}×${e.height}]`);
+    glyphOk = false;
+  }
+}
+check(glyphOk, "bitmap-font glyphs inside safe area (final state)");
 
 // ------------------------------------------------------------- render -----
 function toSvg(ns) {

@@ -69,7 +69,7 @@ In `layout.js`, that becomes `time: { x: 28, y: 196, anchor: "start" }` (116 + 1
 | **SVG files as images** | ❌ | Export them as PNG instead |
 | Rounded-rect corners | ❌ | Use a PNG, or a rect plus circles at the ends |
 | Drop shadows, blur, blend modes | ❌ | Bake them into a PNG |
-| Custom fonts (TTF/OTF) | ❌ | Use per-digit PNG images (§6) |
+| Custom fonts (TTF/OTF) | ⚠️ | Not loadable, but this project pre-renders them to PNG glyphs (§6) |
 | Opacity | ✅ | `opacity` in the type style / element style |
 | Animations | ⚠️ | Supported, but avoided here for battery |
 
@@ -91,7 +91,7 @@ In `layout.js`, that becomes `time: { x: 28, y: 196, anchor: "start" }` (116 + 1
 | Metric icons | 26 × 26 | `resources/icons/<name>.png` |
 | App icon | 80 × 80 | `resources/icon.png` |
 | Full background | 336 × 336 | `resources/bg/background.jpg` |
-| Time digits (optional, §6) | e.g. 60 × 100 per digit | `resources/digits/0.png … 9.png, colon.png` |
+| Font glyphs | generated, one per character | `resources/glyphs/<set>/<charCode>.png` (via `npm run glyphs`) |
 
 Export at **1×**. Fitbit doesn't scale for density, and the image draws at the size set in `layout.js`.
 
@@ -116,32 +116,36 @@ To use a **new** filename, update the `icon:` path in `app/data/metrics.js`.
 
 ## 6. Typography
 
-**Available fonts on Sense:**
+The face uses **Barlow Semi Condensed**, a free Google Font, as a **bitmap font**. `tools/generate_glyphs.py` renders each character to a grayscale PNG, and `app/ui/label.js` lays them out on the watch. In Figma, install Barlow Semi Condensed and design with the real font; what you see is what the watch shows.
 
-| Family | Weight |
-|---|---|
-| `System-Light` | light |
-| `System-Regular` | regular |
-| `System-Bold` | bold |
+**Current type scale (px = Figma font size):**
 
-They render in **Raiju**, Fitbit's system typeface since Fitbit OS 5. Raiju isn't distributed for desktop, so in Figma use a close geometric sans such as **Barlow** or **Inter** as a stand-in, and expect small width differences.
-
-**Recommended sizes (px):**
-
-| Role | Size | Weight |
+| Role | Figma style | Glyph set |
 |---|---|---|
-| Hero time | 90–110 | Bold |
-| Secondary (date) | 22–28 | Bold / Regular |
-| Metric value | 20–26 | Regular |
-| Tertiary (battery, labels) | 14–18 | Regular |
-| Minimum legible | 14 | Regular |
-| AOD time | 80–100 | Regular / Light |
+| Hero time | Barlow Semi Condensed SemiBold 120 | `time` |
+| Date | SemiBold 26, +1 letter-spacing, uppercase | `date` |
+| Metric value | Medium 25 | `value` |
+| Battery % | Medium 17 | `battery` |
+| AOD time | Light 108 | `timeAod` |
+| AOD date | Regular 22 | `dateAod` |
 
-**Using a custom typeface for the time.** Fitbit can't load font files, but digits can be drawn as images:
+**Changing type from a Figma design:**
 
-1. In Figma, set `0`–`9` and `:` in your font at the final size. Make every digit the same width (tabular), so the layout doesn't jump.
-2. Export each glyph as a grayscale PNG (white on black), so it can be tinted: `resources/digits/0.png` and so on.
-3. Ask me to *"switch the time to image digits"*. The change is contained in `ui/clockText.js` (5 `<image>` elements instead of a `<text>`), and the data side is unchanged.
+1. For each text style, note the font file, weight and size.
+2. Edit the `SETS` table in `tools/generate_glyphs.py`. You can add a new font file under `tools/fonts/`.
+3. Run `npm run glyphs`. This rewrites `resources/glyphs/**` and `app/config/glyphs.js`.
+4. Set letter-spacing and colour in `theme.js → TYPE`. Neither needs a regeneration.
+5. Run `npm run preview`. It renders with the same glyph images the watch uses.
+
+**Rules for the bitmap font:**
+
+- Only characters listed in the set exist. The `value` set, for example, has digits, `, . -` and the letters `k m i`. Add any others you need.
+- Sizes are fixed when generated. Every size or weight is its own set.
+- There's no kerning. Glyphs use their advance widths, so tight display pairs may need a small `letterSpacing` tweak.
+- Each glyph slot is an `<image>` element. Labels have a fixed number of slots: time 5, date 12, values 8, battery 4. Longer strings are cut off with a log warning.
+- Memory is negligible, since a 120 px digit is ~5 KB as an 8-bit mask.
+
+**Fitbit system fonts** (fallback, set `USE_BITMAP_FONT = false`): `System-Light`, `System-Regular` and `System-Bold`, rendered in Raiju. They're available as `<text>` at any size, but Raiju isn't distributed for desktop design tools.
 
 ## 7. Where each Figma layer goes
 
@@ -162,7 +166,7 @@ AOD mode, in `app/modes/aod.js`, deliberately shows **only the time and date**. 
 
 - **Pure black background.** The glow and background image are hidden in AOD.
 - **Few lit pixels.** Use thin weights and no filled shapes, and aim for well under ~15% of pixels lit. Large bold numerals or icons increase OLED power draw.
-- **Dim colours.** Mid greys (`#A7B4B6`, `#5F6E70`) instead of white.
+- **Dim colours.** Mid greys (`#9E9E9E`, `#5C5C5C`) instead of white.
 - **No seconds, no sensors, no animation.** The screen updates once per minute.
 - **Burn-in shift.** The text moves by a few pixels each minute (`AOD.burnInOffsets`), so leave ≥ 4 px of slack around AOD elements.
 - **Same visual language.** Keep the same alignment logic and type family as the normal face; only the weight and colour change.
@@ -175,7 +179,7 @@ When you have a new Figma design, send:
 2. Ideally, the **Figma Inspect values** (X, Y, W, H, font size, colours) for each layer, or a link to the file.
 3. Any new icons as 26 × 26 grayscale PNGs (§5).
 
-Then tell me: *"Make the clock face look exactly like this."* I'll update `config/`, `resources/` and, if the structure changes (new elements, different slot count, image digits), the matching `ui/` component and `index.view`. The `data/`, `modes/` and `core/` code stays as it is.
+Then tell me: *"Make the clock face look exactly like this."* I'll update `config/`, `resources/` and, if the structure changes (new elements, different slot count, new glyph sets), the matching `ui/` component and `index.view`. The `data/`, `modes/` and `core/` code stays as it is.
 
 ## 10. Checklist before building
 
@@ -185,4 +189,5 @@ Then tell me: *"Make the clock face look exactly like this."* I'll update `confi
 - [ ] No image is larger than the screen; at most one full-screen raster
 - [ ] AOD frame is mostly black with dim text
 - [ ] `npm run preview` passes with no `OVERFLOW` lines
-- [ ] Checked on the watch or simulator with the Raiju font
+- [ ] Glyph sets regenerated (`npm run glyphs`) after any font change
+- [ ] Checked on the watch or simulator

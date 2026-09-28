@@ -4,7 +4,8 @@
  * Geometry comes from layout.js (NORMAL.slots), content from settings.js
  * (SLOTS), data from data/metrics.js. This file only draws.
  */
-import { node, applyType, setRect } from "./dom";
+import { node, setRect } from "./dom";
+import { createLabel } from "./label";
 import { COLORS, TYPE } from "../config/theme";
 import { NORMAL } from "../config/layout";
 import { getMetric } from "../data/metrics";
@@ -22,7 +23,7 @@ export function createSlots(slotConfig) {
       icon: node("slot" + i + "-icon"),
       track: node("slot" + i + "-track"),
       bar: node("slot" + i + "-bar"),
-      value: node("slot" + i + "-value"),
+      value: createLabel("slot" + i + "-value", 8),
       hit: node("slot" + i + "-hit")
     };
 
@@ -34,10 +35,8 @@ export function createSlots(slotConfig) {
     s.track.el.style.fill = COLORS.track;
     setRect(s.bar.el, barX, L.bar.y, 0, L.bar.height);
 
-    applyType(s.value.el, TYPE.metric);
-    s.value.el.x = cx;
-    s.value.el.y = L.value.y;
-    s.value.el.textAnchor = "middle";
+    s.value.style(TYPE.metric);
+    s.value.place({ x: cx, y: L.value.y, anchor: "middle" });
 
     setRect(s.hit.el, cx - L.hit.width / 2, L.hit.y, L.hit.width, L.hit.height);
 
@@ -51,7 +50,7 @@ export function createSlots(slotConfig) {
     const m = getMetric(metricId);
     const v = m.value();
     s.icon.href(m.icon);
-    s.value.text(m.format(v));
+    s.value.set(m.format(v));
 
     const hasGoal = !!m.goal;
     s.track.visible(hasGoal);

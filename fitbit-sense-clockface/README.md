@@ -1,10 +1,10 @@
 # Sense Minimal: Fitbit Sense clock face
 
-A minimalist clock face for the **Fitbit Sense** (336 × 336), built on the official Fitbit SDK 6.1. The time is the dominant element. The date sits above it, and three tappable metric slots run along the bottom. Each slot has an icon, a goal-progress bar and a value. A dim, burn-in-safe **Always-On Display** mode is included.
+A monochrome, minimalist clock face for the **Fitbit Sense** (336 × 336), built on the official Fitbit SDK 6.1. It's black and white with a soft grey glow, and all text is set in **Barlow Semi Condensed**. The time is the dominant element. The date sits above it, and three tappable metric slots run along the bottom. Each slot has an icon, a goal-progress bar and a value. A dim, burn-in-safe **Always-On Display** mode is included.
 
 ![Preview: normal, alternate metrics after tapping, AOD, 24h](docs/preview.png)
 
-*Preview rendered by the headless smoke test. It uses Liberation Sans in place of the watch's Raiju system font, so letter widths on the real watch will differ slightly.*
+*Preview rendered by the headless smoke test from the same glyph images the watch uses. The only approximation is the background glow's falloff.*
 
 | Shown | Source (Fitbit API) | Updates |
 |---|---|---|
@@ -54,6 +54,7 @@ fitbit-sense-clockface/
 │   ├── index.js            # entry point: wiring only
 │   ├── config/             # ◀ everything a designer edits
 │   │   ├── theme.js        #   colours, fonts, type sizes, background
+│   │   ├── glyphs.js       #   GENERATED bitmap-font metrics (npm run glyphs)
 │   │   ├── layout.js       #   every x/y/size (normal + AOD), safe area
 │   │   └── settings.js     #   time/date format, which metrics, taps, AOD
 │   ├── core/               # pure logic, no Fitbit imports
@@ -66,6 +67,7 @@ fitbit-sense-clockface/
 │   │   └── metrics.js      #   ◀ metric registry (id → data, format, icon)
 │   ├── ui/                 # drawing only; never touch sensors
 │   │   ├── dom.js          #   change-guarded setters (no redundant redraws)
+│   │   ├── label.js        #   text via bitmap font OR system font
 │   │   ├── face.js         #   builds all components once
 │   │   ├── background.js   #   gradient / image / solid
 │   │   ├── clockText.js    #   time + date (normal & AOD placement)
@@ -83,10 +85,13 @@ fitbit-sense-clockface/
 │   ├── widget.defs
 │   ├── icon.png            # 80×80 app icon (required size)
 │   ├── icons/*.png         # 26×26 grayscale metric icons (tintable)
+│   ├── glyphs/<set>/*.png  # bitmap font: one grayscale PNG per character
 │   └── bg/background.jpg   # optional raster background
 ├── tools/
 │   ├── smoke/              # headless test: real app code + mocked Fitbit APIs
-│   └── generate_icons.py   # regenerates the placeholder art
+│   ├── generate_glyphs.py  # font file → glyph PNGs + glyphs.js
+│   ├── generate_icons.py   # regenerates the placeholder art
+│   └── fonts/              # Barlow Semi Condensed (SIL OFL 1.1)
 ├── DESIGN.md               # Figma → clock face handbook
 └── docs/preview.png
 ```
@@ -157,22 +162,33 @@ After each change, run `npm run preview` to check quickly, then use `build-and-i
 All colours are defined in one object, `COLORS`, in `app/config/theme.js`:
 
 ```js
-glowInner: "#2B5F64",  // teal glow behind the time
+glowInner: "#3A3A3A",   // soft grey glow behind the time
 textPrimary: "#FFFFFF", // time
-progress: "#BFE4E7",   // goal bars
-goalReached: "#7FF0C0",
-aodTime: "#A7B4B6",    // keep AOD colours dim
+progress: "#D6D6D6",    // goal bars
+goalReached: "#FFFFFF", // bars brighten to white at 100%
+aodTime: "#9E9E9E",     // keep AOD colours dim
 ```
 
 Use `#RRGGBB`. Don't rely on alpha in hex values; set transparency with the `opacity` field on a `TYPE` style instead. Icons pick up `COLORS.icon` automatically, because they are grayscale masks.
 
 ## 9. Typography
 
-The type styles are defined in `TYPE` in `app/config/theme.js`: `time`, `date`, `metric`, `battery`, `aodTime` and `aodDate`. Each style has `fontFamily`, `fontSize`, `letterSpacing`, `fill` and an optional `opacity`.
+All text is drawn in **Barlow Semi Condensed**. Fitbit can't load font files, so the face uses a **bitmap font**: every character is pre-rendered as a small grayscale PNG, and `app/ui/label.js` lays the characters out and tints them with the theme colours.
 
-- **Fonts available on Sense:** `System-Light`, `System-Regular` and `System-Bold`, all in Fitbit's Raiju typeface. Fitbit did not publish these fonts as TTF files for Figma, so use a close stand-in there (Barlow or Inter) and check the result on the watch.
-- **Custom fonts are not supported.** Fitbit can't load TTF/OTF files. The workaround is to export each digit as a PNG and lay the digits out as images; see DESIGN.md → *Typography*.
-- If time digits overflow the safe area, `npm run preview` flags them. The flag is approximate, so confirm on the watch.
+| Style | Weight | Size | Used for |
+|---|---|---|---|
+| `time` | SemiBold 600 | 120 | hero time |
+| `timeAod` | Light 300 | 108 | AOD time |
+| `date` | SemiBold 600 | 26 | date |
+| `dateAod` | Regular 400 | 22 | AOD date |
+| `value` | Medium 500 | 25 | metric values |
+| `battery` | Medium 500 | 17 | battery % |
+
+- **Change sizes, weights or characters:** edit the `SETS` table in `tools/generate_glyphs.py`, then run `npm run glyphs`. That regenerates `resources/glyphs/` and `app/config/glyphs.js`.
+- **Use a different typeface:** put its `.ttf`/`.otf`/`.woff` file in `tools/fonts/`, point `SETS` at it, and run `npm run glyphs`.
+- **Change spacing and colour** (no regeneration needed): edit `letterSpacing` and `fill` in `TYPE` in `theme.js`.
+- **Go back to Fitbit's system font (Raiju):** set `USE_BITMAP_FONT = false` in `theme.js`. The system sizes come from `fontSize` in each `TYPE` style.
+- **Figma:** Barlow Semi Condensed is a free Google Font, so the Figma file can use the exact same font as the watch.
 
 ## 10. Add or remove metrics
 
@@ -199,6 +215,7 @@ export const SLOTS = [
 | `Missing element #xyz in resources/index.view` | An id was renamed or removed in `index.view` but is still used in `app/ui/`. Keep ids in sync. |
 | `Unknown metric id in settings.SLOTS` | A typo in `SLOTS`, or the id is missing from `data/metrics.js`. |
 | Values show `--` | The permission is not granted. Re-grant it in **Fitbit app → clock face → Permissions**. HR also shows `--` when the watch is off-wrist. |
+| A character is missing or shows a gap | It isn't in that glyph set. Add it to `SETS` in `tools/generate_glyphs.py` and run `npm run glyphs`. The `fitbit$ logs` output names the missing glyph. |
 | Icon appears as a solid square | The PNG is RGB/RGBA, not **grayscale**. Re-export it as 8-bit grayscale (white = visible). |
 | Steps lag by up to a minute | This is by design: activity is read on each minute tick and on wake, to save battery. |
 | AOD never shows the face | AOD must be on under *Watch Settings → Display → Always-on display*. Also, `access_aod` is a **restricted** permission; see "Limitations". |
@@ -213,7 +230,7 @@ export const SLOTS = [
 These were checked against the SDK 6.1 toolchain source and API surface. Nothing is faked; each item notes the closest supported alternative.
 
 1. **Always-On Display is a restricted permission.** SDK 6.1 lists `access_aod` as *"[Restricted] Always-on Display"*. The code requests it and only enables AOD when `display.aodAvailable && me.permissions.granted("access_aod")`. If Fitbit doesn't grant it (for example, a Gallery submission without approval), the face falls back cleanly: the screen turns off as normal. The AOD code path is fully implemented and unit-tested with mocks, but whether a sideloaded build gets the permission is decided by Fitbit's servers, not by this code.
-2. **Custom fonts can't be loaded.** Only system fonts are available. The workaround is per-digit PNG images (DESIGN.md).
+2. **Custom fonts can't be loaded.** Fitbit only has its system fonts. This face works around that with a bitmap font (pre-rendered PNG glyphs), which is why Barlow works. The catch: sizes are fixed when the glyphs are generated, and there's no kerning, only per-character advance widths.
 3. **Activity data has no change event.** `user-activity` can only be polled. The face reads it once a minute and on wake, instead of every second.
 4. **No settings page yet.** A phone-side settings UI (colour pickers and similar) needs a companion + settings component plus messaging, which is a meaningful memory and complexity cost. The values are compile-time config for now. The architecture leaves room to add one later: `settings.js` values would be overridden at runtime.
 5. **Rounded rectangles aren't available.** Fitbit `<rect>` has no corner radius. Progress bars are square-ended, which reads fine at 4 px. For pill ends, use a PNG.

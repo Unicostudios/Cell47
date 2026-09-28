@@ -10,7 +10,8 @@
     "smoke": "node tools/smoke/run.mjs",
     "preview": "node tools/smoke/run.mjs --render",
     "icons": "python3 tools/generate_icons.py",
-    "test": "node tools/smoke/run.mjs"
+    "test": "node tools/smoke/run.mjs",
+    "glyphs": "python3 tools/generate_glyphs.py"
   },
   "devDependencies": {
     "@fitbit/sdk": "~6.1.0",

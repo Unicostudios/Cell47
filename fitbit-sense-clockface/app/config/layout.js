@@ -23,9 +23,9 @@ export const NORMAL = {
     text: { x: 162, y: 37, anchor: "start" }
   },
 
-  date: { visible: true, x: 34, y: 104, anchor: "start" },
+  date: { visible: true, x: 32, y: 100, anchor: "start" },
 
-  time: { visible: true, x: 28, y: 196, anchor: "start" },
+  time: { visible: true, x: 28, y: 200, anchor: "start" },
 
   // Three metric "slots" along the bottom. Each slot = icon, progress bar,
   // value and an invisible touch target. What each slot SHOWS is set in
@@ -41,8 +41,8 @@ export const NORMAL = {
 };
 
 export const AOD = {
-  date: { visible: true, x: 168, y: 112, anchor: "middle" },
-  time: { visible: true, x: 168, y: 200, anchor: "middle" },
+  date: { visible: true, x: 168, y: 110, anchor: "middle" },
+  time: { visible: true, x: 168, y: 206, anchor: "middle" },
 
   // OLED burn-in protection: the AOD text block moves by these offsets,
   // advancing one step per minute. Set to [[0, 0]] to disable.

@@ -5,37 +5,43 @@
  * Colours are "#RRGGBB" hex strings. Don't rely on alpha in the hex value;
  * use the `opacity` field on a type style instead.
  *
- * Fonts: Fitbit Sense only ships system fonts. The three safe families are
- * "System-Light", "System-Regular" and "System-Bold" (rendered in Fitbit's
- * Raiju typeface on Fitbit OS 5+). Custom TTF/OTF fonts are NOT supported;
- * see DESIGN.md → "Typography" for the bitmap-digit alternative.
+ * Typography comes in two flavours (see DESIGN.md → "Typography"):
+ *   • Bitmap font (default): Barlow Semi Condensed, pre-rendered to PNG
+ *     glyphs by tools/generate_glyphs.py. Sizes are baked in at generation
+ *     time — change them there and run `npm run glyphs`.
+ *   • Fitbit system font: "System-Light" / "System-Regular" / "System-Bold"
+ *     (Raiju). Set USE_BITMAP_FONT = false to use it everywhere.
  */
+import * as GLYPHS from "./glyphs";
 
+export const USE_BITMAP_FONT = true;
+
+// Monochrome palette: pure black canvas, white type, a soft grey glow.
 export const COLORS = {
   // Canvas
-  background: "#000000", // shown behind the glow and in AOD
-  glowInner: "#2B5F64", // centre of the radial glow (teal, from reference)
-  glowOuter: "#020405", // edge of the radial glow
+  background: "#000000", // behind the glow, and all of AOD
+  glowInner: "#3A3A3A", // centre of the radial glow
+  glowOuter: "#000000", // edge of the radial glow
 
   // Text
   textPrimary: "#FFFFFF", // time
-  textSecondary: "#D8E4E5", // date, metric values
-  textMuted: "#8FA2A4", // battery %, unavailable values
+  textSecondary: "#E8E8E8", // date, metric values
+  textMuted: "#8A8A8A", // battery %
 
   // Icons & progress
   icon: "#FFFFFF",
-  track: "#2A393B", // unfilled part of a progress bar
-  progress: "#BFE4E7", // filled part of a progress bar
-  goalReached: "#7FF0C0", // progress bar once the goal is hit
-  accent: "#8FE3E9", // charging state and tap feedback
+  track: "#3A3A3A", // unfilled part of a progress bar
+  progress: "#D6D6D6", // filled part of a progress bar
+  goalReached: "#FFFFFF", // bar once the goal is hit (brightens to white)
+  accent: "#FFFFFF", // charging state
 
   // Battery
-  batteryNormal: "#8FA2A4",
-  batteryLow: "#FF6B5B",
+  batteryNormal: "#8A8A8A",
+  batteryLow: "#FFFFFF", // low battery = brighter, not a colour
 
   // Always-On Display (keep these dim: AOD is an OLED power budget)
-  aodTime: "#A7B4B6",
-  aodDate: "#5F6E70"
+  aodTime: "#9E9E9E",
+  aodDate: "#5C5C5C"
 };
 
 export const FONTS = {
@@ -46,51 +52,32 @@ export const FONTS = {
 
 /*
  * Type styles. Keys:
- *   fontFamily    one of FONTS
- *   fontSize      px on the 336×336 canvas
- *   letterSpacing px (negative tightens)
+ *   glyphs        bitmap glyph set from glyphs.js (used when USE_BITMAP_FONT)
+ *   fontFamily    system-font fallback, one of FONTS
+ *   fontSize      system-font size in px (bitmap sizes are set in the generator)
+ *   letterSpacing px between characters (negative tightens)
  *   fill          colour
- *   opacity       0–1 (optional)
+ *   opacity       0–1 (system font only, optional)
  */
+function type(glyphs, fontFamily, fontSize, letterSpacing, fill) {
+  return {
+    glyphs: USE_BITMAP_FONT ? glyphs : null,
+    fontFamily: fontFamily,
+    fontSize: fontSize,
+    letterSpacing: letterSpacing,
+    fill: fill
+  };
+}
+
 export const TYPE = {
-  time: {
-    fontFamily: FONTS.bold,
-    fontSize: 100,
-    letterSpacing: -2,
-    fill: COLORS.textPrimary
-  },
-  date: {
-    fontFamily: FONTS.bold,
-    fontSize: 26,
-    letterSpacing: 1,
-    fill: COLORS.textSecondary
-  },
-  metric: {
-    fontFamily: FONTS.regular,
-    fontSize: 24,
-    letterSpacing: 0,
-    fill: COLORS.textSecondary
-  },
-  battery: {
-    fontFamily: FONTS.regular,
-    fontSize: 16,
-    letterSpacing: 0,
-    fill: COLORS.textMuted
-  },
+  time: type(GLYPHS.time, FONTS.bold, 100, 1, COLORS.textPrimary),
+  date: type(GLYPHS.date, FONTS.bold, 26, 1, COLORS.textSecondary),
+  metric: type(GLYPHS.value, FONTS.regular, 24, 0, COLORS.textSecondary),
+  battery: type(GLYPHS.battery, FONTS.regular, 16, 0, COLORS.textMuted),
 
   // AOD variants: lighter weight + dimmer colour = fewer lit pixels.
-  aodTime: {
-    fontFamily: FONTS.regular,
-    fontSize: 96,
-    letterSpacing: -2,
-    fill: COLORS.aodTime
-  },
-  aodDate: {
-    fontFamily: FONTS.regular,
-    fontSize: 22,
-    letterSpacing: 1,
-    fill: COLORS.aodDate
-  }
+  aodTime: type(GLYPHS.timeAod, FONTS.light, 96, 1, COLORS.aodTime),
+  aodDate: type(GLYPHS.dateAod, FONTS.regular, 22, 1, COLORS.aodDate)
 };
 
 /*
@@ -107,10 +94,10 @@ export const BACKGROUND = {
   image: "bg/background.jpg",
   gradient: {
     type: "radial",
-    x1: 214,
-    y1: 150,
-    x2: 336,
-    y2: 336,
+    x1: 210,
+    y1: 170,
+    x2: 360,
+    y2: 360,
     c1: COLORS.glowInner,
     c2: COLORS.glowOuter
   }

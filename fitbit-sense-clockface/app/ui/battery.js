@@ -2,7 +2,8 @@
  * Battery indicator: a vector battery glyph (built from rects so it needs no
  * image and can be recoloured freely) plus a percentage label.
  */
-import { node, applyType, applyTextBox, setRect } from "./dom";
+import { node, setRect } from "./dom";
+import { createLabel } from "./label";
 import { COLORS, TYPE } from "../config/theme";
 import { NORMAL } from "../config/layout";
 import { BATTERY } from "../config/settings";
@@ -15,7 +16,7 @@ export function createBattery() {
   const sides = [node("bat-top"), node("bat-bottom"), node("bat-left"), node("bat-right")];
   const nub = node("bat-nub");
   const level = node("bat-level");
-  const label = node("bat-text");
+  const label = createLabel("bat-text", 4); // "100%"
 
   // Static geometry, applied once.
   setRect(sides[0].el, i.x, i.y, i.width, i.stroke);
@@ -28,8 +29,8 @@ export function createBattery() {
   const levelMax = i.width - 2 * inset;
   setRect(level.el, i.x + inset, i.y + inset, levelMax, i.height - 2 * inset);
 
-  applyType(label.el, TYPE.battery);
-  applyTextBox(label.el, L.text);
+  label.style(TYPE.battery);
+  label.place(L.text);
 
   const enabled = BATTERY.show && L.visible;
 
@@ -45,7 +46,7 @@ export function createBattery() {
       nub.fill(color);
       level.fill(color);
       level.width(Math.max(1, Math.round((levelMax * percent) / 100)));
-      label.text(percent + "%");
+      label.set(percent + "%");
     }
   };
 }
