@@ -7,11 +7,13 @@
   "scripts": {
     "build": "fitbit-build",
     "debug": "fitbit",
-    "smoke": "node tools/smoke/run.mjs && node tools/smoke/companion.mjs",
+    "smoke": "node tools/ensure-secrets.mjs && node tools/smoke/run.mjs && node tools/smoke/companion.mjs",
     "preview": "node tools/smoke/run.mjs --render",
     "icons": "python3 tools/generate_icons.py",
-    "test": "node tools/smoke/run.mjs && node tools/smoke/companion.mjs",
-    "glyphs": "python3 tools/generate_glyphs.py"
+    "test": "node tools/ensure-secrets.mjs && node tools/smoke/run.mjs && node tools/smoke/companion.mjs",
+    "glyphs": "python3 tools/generate_glyphs.py",
+    "prebuild": "node tools/ensure-secrets.mjs",
+    "set-key": "node tools/set-key.mjs"
   },
   "devDependencies": {
     "@fitbit/sdk": "~6.1.0",

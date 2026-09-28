@@ -4,10 +4,14 @@
  * Receives the stats file queued by the watch (app/data/sync.js) and writes
  * it as JSON into the code block of the user's "Fitbit Stats" Notion page,
  * which the Ops Desk dashboard reads. Only talks to api.notion.com, only
- * with the key the user pasted into this clock face's settings.
+ * with the user's own key: from this face's Settings screen, or — if the
+ * Fitbit app hides that screen — the one saved locally by `npm run set-key`.
  */
 import { inbox } from "file-transfer";
 import { settingsStorage } from "settings";
+// Optional key baked in at build time by `npm run set-key` (git-ignored file),
+// for when the Fitbit app doesn't show this face's Settings screen.
+import { NOTION_TOKEN } from "./secrets";
 
 const NOTION = "https://api.notion.com/v1";
 const NOTION_VERSION = "2022-06-28";
@@ -60,9 +64,10 @@ function codeBlock(json) {
 }
 
 function pushToNotion(stats) {
-  const token = setting("notionToken");
+  const token = setting("notionToken") || NOTION_TOKEN;
   if (!token) {
     status("Waiting for your Notion key");
+    console.log("Dashboard sync: no Notion key yet (npm run set-key)");
     return Promise.resolve();
   }
   const page = pageId();
@@ -92,10 +97,11 @@ function pushToNotion(stats) {
     })
     .then(function () {
       status("Last synced " + new Date().toLocaleTimeString());
+      console.log("Dashboard sync: stats written to Notion ✓");
     })
     .catch(function (e) {
       status("Sync failed — " + e.message);
-      console.error(e);
+      console.error("Dashboard sync failed: " + e.message);
     });
 }
 

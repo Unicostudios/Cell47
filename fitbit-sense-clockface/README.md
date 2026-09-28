@@ -250,8 +250,9 @@ watch (app/data/sync.js) ──file transfer──▶ phone (companion/index.js)
   1. At notion.so/my-integrations, create an internal integration and copy its secret.
   2. On the **Fitbit Stats** page, open **⋯ → Connections** and add that integration.
   3. In the Fitbit app, go to **Clock Faces → Sense Minimal → Settings** and paste the secret.
+  - **Can't find the face in the Fitbit app?** The redesigned Fitbit app hides faces installed from a computer, so the Settings screen is unreachable. Instead, run `npm run set-key` on your computer, paste the secret, then `build-and-install`. The key is saved to `companion/secrets.js`, which is git-ignored and never pushed. `npm run set-key -- --clear` removes it.
 - **Turn it off:** set `settings.js → SYNC.enabled = false`, or revoke the integration in Notion.
-- **Check it:** the settings screen shows "Last synced …" or the exact error.
+- **Check it:** the settings screen shows "Last synced …" or the exact error. With `npx fitbit` connected, the Terminal also prints `Dashboard sync: stats written to Notion ✓`, or the failure reason.
 
 ## Limitations (Fitbit SDK / Sense)
 
