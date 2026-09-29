@@ -238,8 +238,8 @@ function startVoice() {
 function stopVoice() { followUpRun++; if (voice) { voice.stop(); voice = null; } }
 
 // Conversation mode: once Jarvis has finished answering out loud, listen again
-// (no "Hey Jarvis" needed). If you don't say anything within 10 s, it stops.
-const FOLLOW_UP_MS = 10000;
+// (no "Hey Jarvis" needed). If you don't start talking within 3 s, it stops.
+const FOLLOW_UP_MS = 3000;
 let followUpRun = 0;
 async function listenForFollowUp() {
   const run = ++followUpRun, v = voice, started = Date.now();
