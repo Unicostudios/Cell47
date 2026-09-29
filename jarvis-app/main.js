@@ -13,7 +13,7 @@
  */
 const {
   app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, safeStorage,
-  shell, session, globalShortcut, Notification, systemPreferences
+  shell, session, globalShortcut, Notification, systemPreferences, utilityProcess
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
@@ -130,9 +130,15 @@ const FILL_JS = `(() => {
     return best;
   };
   const hide = (el) => { el.style.setProperty("display", "none", "important"); el.dataset.jarvisHidden = "1"; };
+  let done = null;
   const apply = () => {
     const f = pick();
     if (!f) return;
+    // Already filling the window? Nothing to do (keeps this check nearly free).
+    if (done === f) {
+      const r = f.getBoundingClientRect();
+      if (r.top === 0 && r.left === 0 && r.width === innerWidth && r.height === innerHeight) return;
+    }
     // Hide everything that sits above the dashboard (claude.ai's own bar), at every level.
     const top = f.getBoundingClientRect().top;
     let el = f;
@@ -161,9 +167,13 @@ const FILL_JS = `(() => {
       d.style.cssText = "position:fixed;top:0;left:0;right:0;height:30px;z-index:2147483601;-webkit-app-region:drag;";
       document.body.appendChild(d);
     }
+    done = f;
   };
   apply();
-  if (!window.__jarvisFillTimer) window.__jarvisFillTimer = setInterval(apply, 1000);
+  if (!window.__jarvisFillTimer) {
+    window.__jarvisFillTimer = setInterval(apply, 3000);
+    addEventListener("resize", apply);
+  }
 })();`;
 function fillWindow() {
   if (!win) return;
@@ -194,9 +204,7 @@ function startVoice() {
   const c = readConfig(), k = keys();
   if (!c.listening) return updateTray();
   if (!k.elevenlabs) { updateTray(); return openSettings(); }
-  let Voice;
-  try { Voice = require("./voice.js").Voice; } catch (e) { return fail(e); }
-  voice = new Voice({
+  voice = new VoiceProcess({
     modelDir: path.join(__dirname, "models"), elevenlabsKey: k.elevenlabs,
     sensitivity: Number(c.sensitivity) || 0.5, sttModel: c.sttModel,
     onWake: () => {
@@ -217,6 +225,43 @@ function startVoice() {
   Promise.resolve().then(() => v.start()).then(() => updateTray("idle"), (e) => { if (voice === v) voice = null; fail(e); });
 }
 function stopVoice() { if (voice) { voice.stop(); voice = null; } }
+
+// The voice engine (voice.js) runs in its own background process so the mic
+// and wake-word model never slow down the window.
+class VoiceProcess {
+  constructor(o) { this.o = o; }
+  start() {
+    const o = this.o;
+    const opts = { modelDir: o.modelDir, elevenlabsKey: o.elevenlabsKey, sensitivity: o.sensitivity, sttModel: o.sttModel };
+    return new Promise((resolve, reject) => {
+      let started = false;
+      const child = this.child = utilityProcess.fork(path.join(__dirname, "voice-worker.js"), [], { serviceName: "Jarvis Voice" });
+      child.on("message", (m) => {
+        if (m.type === "started") { started = true; resolve(); }
+        else if (m.type === "startError") reject(new Error(m.message));
+        else if (m.type === "wake") o.onWake();
+        else if (m.type === "state") o.onState(m.state, m.detail);
+        else if (m.type === "transcript") o.onTranscript(m.text);
+        else if (m.type === "error") o.onError(new Error(m.message));
+      });
+      child.on("exit", (code) => {
+        if (this.stopped) return;
+        const err = new Error("The voice engine stopped (code " + code + ")");
+        if (started) o.onError(err); else reject(err);
+      });
+      child.postMessage({ type: "start", opts });
+    });
+  }
+  listenNow() { if (this.child) this.child.postMessage({ type: "listen" }); }
+  stop() {
+    this.stopped = true;
+    const c = this.child;
+    this.child = null;
+    if (!c) return;
+    try { c.postMessage({ type: "stop" }); } catch (e) {}
+    setTimeout(() => { try { c.kill(); } catch (e) {} }, 1000);
+  }
+}
 
 function fail(e) {
   const msg = (e && e.message) || String(e);

@@ -29,6 +29,7 @@
     "files": [
       "main.js",
       "voice.js",
+      "voice-worker.js",
       "wakeword.js",
       "settings.html",
       "settings-preload.js",
