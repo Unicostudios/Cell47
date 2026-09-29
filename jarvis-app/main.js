@@ -81,10 +81,11 @@ function createWindow() {
     titleBarStyle: "hiddenInset",
     backgroundColor: "#e7e6e0",
     show: false,
+    fullscreenable: true,
     webPreferences: { partition: PARTITION, contextIsolation: true, sandbox: true }
   });
   win.loadURL(DASHBOARD_URL);
-  win.once("ready-to-show", () => win.show());
+  win.once("ready-to-show", () => { win.show(); goFullScreen(); });
 
   // Links open in your normal browser; sign-in pop-ups stay inside the app.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -103,7 +104,14 @@ function createWindow() {
   });
   win.webContents.on("did-finish-load", fillWindow);
 
-  win.on("close", (e) => { if (!quitting) { e.preventDefault(); win.hide(); } });
+  // Closing keeps Jarvis running. Leave full screen first, so macOS doesn't
+  // leave an empty full-screen space behind, then hide.
+  win.on("close", (e) => {
+    if (quitting) return;
+    e.preventDefault();
+    if (win.isFullScreen()) { win.once("leave-full-screen", () => win.hide()); win.setFullScreen(false); }
+    else win.hide();
+  });
 }
 
 // The dashboard lives in an iframe on claude.ai's page. Stretch that frame over
@@ -141,10 +149,16 @@ function fillWindow() {
   win.webContents.executeJavaScript(FILL_JS).catch(() => {});
 }
 
+// Jarvis always runs full screen.
+function goFullScreen() {
+  if (win && !win.isFullScreen()) win.setFullScreen(true);
+}
+
 function showWindow() {
   if (!win) createWindow();
   if (win.isMinimized()) win.restore();
   win.show();
+  goFullScreen();
   app.focus({ steal: true });
 }
 
