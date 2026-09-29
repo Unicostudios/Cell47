@@ -24,6 +24,8 @@ const HOTKEY = "Alt+Space";           // press to talk without the wake word
 
 app.setName("Jarvis");
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
+app.commandLine.appendSwitch("enable-gpu-rasterization");
+app.commandLine.appendSwitch("enable-zero-copy");
 if (!app.requestSingleInstanceLock()) app.quit();
 
 let win = null, tray = null, settingsWin = null, voice = null;
@@ -127,13 +129,32 @@ const FILL_JS = `(() => {
     }
     return best;
   };
+  const hide = (el) => { el.style.setProperty("display", "none", "important"); el.dataset.jarvisHidden = "1"; };
   const apply = () => {
     const f = pick();
     if (!f) return;
-    if (f.dataset.jarvisFill !== "1") {
-      f.dataset.jarvisFill = "1";
-      f.style.cssText += ";position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;border:0!important;border-radius:0!important;z-index:2147483600!important;";
+    // Hide everything that sits above the dashboard (claude.ai's own bar), at every level.
+    const top = f.getBoundingClientRect().top;
+    let el = f;
+    while (el && el !== document.body && el.parentElement) {
+      const parent = el.parentElement;
+      for (const sib of parent.children) {
+        if (sib === el || sib.contains(f) || sib.dataset.jarvisHidden || sib.id === "jarvis-drag") continue;
+        const r = sib.getBoundingClientRect();
+        if (r.height > 0 && r.bottom <= top + 2) hide(sib);
+      }
+      // let every container on the way up take the full window
+      parent.style.setProperty("padding", "0", "important");
+      parent.style.setProperty("margin", "0", "important");
+      parent.style.setProperty("border-radius", "0", "important");
+      el = parent;
     }
+    // …and make the dashboard itself fill the window.
+    f.style.setProperty("width", "100vw", "important");
+    f.style.setProperty("height", "100vh", "important");
+    f.style.setProperty("border", "0", "important");
+    f.style.setProperty("border-radius", "0", "important");
+    document.documentElement.style.setProperty("overflow", "hidden", "important");
     if (!document.getElementById("jarvis-drag")) {
       const d = document.createElement("div");
       d.id = "jarvis-drag";
@@ -142,7 +163,7 @@ const FILL_JS = `(() => {
     }
   };
   apply();
-  if (!window.__jarvisFillTimer) window.__jarvisFillTimer = setInterval(apply, 1500);
+  if (!window.__jarvisFillTimer) window.__jarvisFillTimer = setInterval(apply, 1000);
 })();`;
 function fillWindow() {
   if (!win) return;
