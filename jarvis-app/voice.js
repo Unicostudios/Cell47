@@ -84,9 +84,12 @@ class Voice {
     this.recorder = null;
   }
 
-  /** Start listening for a command right away (e.g. from a keyboard shortcut). */
-  listenNow() {
-    if (this.mode === "wake") this.beginCapture();
+  /**
+   * Start listening for a command right away (keyboard shortcut, or a follow-up
+   * after Jarvis answers). opts.noSpeechMs: how long to wait for you to start talking.
+   */
+  listenNow(opts) {
+    if (this.mode === "wake") this.beginCapture(opts);
   }
 
   async loop() {
@@ -113,8 +116,10 @@ class Voice {
     }
   }
 
-  beginCapture() {
+  beginCapture(opts) {
     if (this.wake) this.wake.reset();
+    this.noSpeechMs = (opts && opts.noSpeechMs) || NO_SPEECH_MS;
+    this.followUp = !!(opts && opts.followUp);
     this.mode = "capture";
     this.frames = [];
     this.heard = false;
@@ -130,7 +135,7 @@ class Voice {
     const loud = rms(frame) > Math.max(this.noise * 2.8, 450);
     if (loud) { this.heard = true; this.quietMs = 0; } else if (this.heard) { this.quietMs += ms; }
 
-    if (!this.heard && this.elapsed >= NO_SPEECH_MS) return this.finish(false);
+    if (!this.heard && this.elapsed >= this.noSpeechMs) return this.finish(false);
     if (this.heard && this.quietMs >= END_SILENCE_MS) return this.finish(true);
     if (this.elapsed >= MAX_UTTERANCE_MS) return this.finish(this.heard);
   }
@@ -140,7 +145,8 @@ class Voice {
     this.frames = [];
     this.mode = "wake";
     this.cooldownMs = COOLDOWN_MS;       // measured in audio, not clock time
-    if (!gotSpeech) { this.o.onState("idle", "Didn't catch anything"); return; }
+    // A follow-up nobody answered just ends quietly.
+    if (!gotSpeech) { this.o.onState("idle", this.followUp ? "" : "Didn't catch anything"); return; }
     this.o.onState("thinking");
     transcribe(toWav(frames), this.o.elevenlabsKey, this.o.sttModel)
       .then((text) => {

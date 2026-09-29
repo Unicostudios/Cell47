@@ -70,6 +70,12 @@ async function inDash(js) {
   if (!f) return false;
   try { await f.executeJavaScript(js); return true; } catch (e) { return false; }
 }
+// Like inDash, but returns what the code evaluates to (undefined if it can't run).
+async function askDash(js) {
+  const f = await dashFrame();
+  if (!f) return undefined;
+  try { return await f.executeJavaScript(js); } catch (e) { return undefined; }
+}
 
 function createWindow() {
   const ses = session.fromPartition(PARTITION);
@@ -81,7 +87,7 @@ function createWindow() {
     width: 1340, height: 900, minWidth: 420, minHeight: 560,
     title: "Jarvis",
     titleBarStyle: "hiddenInset",
-    backgroundColor: "#e7e6e0",
+    backgroundColor: "#ffffff",
     show: false,
     fullscreenable: true,
     webPreferences: { partition: PARTITION, contextIsolation: true, sandbox: true }
@@ -217,14 +223,33 @@ function startVoice() {
     onTranscript: async (text) => {
       voiceState("heard", text);
       const ok = await inDash("window.jarvisCommand && jarvisCommand(" + JSON.stringify(text) + ")");
-      if (!ok) notify("Jarvis heard: “" + text + "”", "Open the Jarvis window and sign in to run commands.");
+      if (!ok) return notify("Jarvis heard: “" + text + "”", "Open the Jarvis window and sign in to run commands.");
+      listenForFollowUp();
     },
     onError: fail
   });
   const v = voice;
   Promise.resolve().then(() => v.start()).then(() => updateTray("idle"), (e) => { if (voice === v) voice = null; fail(e); });
 }
-function stopVoice() { if (voice) { voice.stop(); voice = null; } }
+function stopVoice() { followUpRun++; if (voice) { voice.stop(); voice = null; } }
+
+// Conversation mode: once Jarvis has finished answering out loud, listen again
+// (no "Hey Jarvis" needed). If you don't say anything within 10 s, it stops.
+const FOLLOW_UP_MS = 10000;
+let followUpRun = 0;
+async function listenForFollowUp() {
+  const run = ++followUpRun, v = voice, started = Date.now();
+  await new Promise((r) => setTimeout(r, 800));          // let the reply start
+  while (run === followUpRun && voice === v && Date.now() - started < 120000) {
+    const busy = await askDash("window.jarvisBusy ? jarvisBusy() : false");
+    if (busy === undefined) return;                       // dashboard not reachable
+    if (!busy) break;
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  if (run !== followUpRun || voice !== v || !v) return;
+  await new Promise((r) => setTimeout(r, 350));          // let the last word fade out of the speakers
+  if (run === followUpRun && voice === v) v.listenNow({ noSpeechMs: FOLLOW_UP_MS, followUp: true });
+}
 
 // The voice engine (voice.js) runs in its own background process so the mic
 // and wake-word model never slow down the window.
@@ -252,7 +277,7 @@ class VoiceProcess {
       child.postMessage({ type: "start", opts });
     });
   }
-  listenNow() { if (this.child) this.child.postMessage({ type: "listen" }); }
+  listenNow(opts) { if (this.child) this.child.postMessage({ type: "listen", opts }); }
   stop() {
     this.stopped = true;
     const c = this.child;

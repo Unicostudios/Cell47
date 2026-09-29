@@ -21,7 +21,7 @@ process.parentPort.on("message", async (e) => {
     try { await voice.start(); send({ type: "started" }); }
     catch (err) { send({ type: "startError", message: msg(err) }); }
   } else if (m.type === "listen") {
-    if (voice) voice.listenNow();
+    if (voice) voice.listenNow(m.opts);
   } else if (m.type === "stop") {
     if (voice) voice.stop();
     process.exit(0);
