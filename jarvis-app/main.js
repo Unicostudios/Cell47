@@ -128,9 +128,32 @@ function createWindow() {
   win.on("close", (e) => {
     if (quitting) return;
     e.preventDefault();
-    if (win.isFullScreen()) { win.once("leave-full-screen", () => win.hide()); win.setFullScreen(false); }
-    else win.hide();
+    hideWindow();
   });
+  // While the window is closed, "Hey Jarvis" opens it and greets you before listening.
+  win.on("show", syncWakeMode);
+  win.on("hide", syncWakeMode);
+}
+
+async function hideWindow() {
+  // Blank the dashboard first, so the next open starts clean with the entrance
+  // (instead of flashing the old dashboard before the orb).
+  await inDash("window.jarvisPrepareWake && jarvisPrepareWake()");
+  await new Promise((r) => setTimeout(r, 150));
+  if (win.isFullScreen()) { win.once("leave-full-screen", () => win.hide()); win.setFullScreen(false); }
+  else win.hide();
+}
+
+// Show the window; if it was closed, play the entrance (greet = say hello out loud).
+// Returns true if it was closed.
+function reveal(greet) {
+  const wasHidden = !win || !win.isVisible();
+  showWindow();
+  if (wasHidden) inDash("window.jarvisWake && jarvisWake(true, { silent: " + !greet + " })");
+  return wasHidden;
+}
+function syncWakeMode() {
+  if (voice) voice.setCaptureOnWake(!!win && win.isVisible());
 }
 
 function layout() {
@@ -195,10 +218,9 @@ function startVoice() {
     modelDir: path.join(__dirname, "models"), elevenlabsKey: k.elevenlabs,
     sensitivity: Number(c.sensitivity) || 0.5, sttModel: c.sttModel,
     onWake: () => {
-      const wasHidden = !win || !win.isVisible() || !win.isFocused();
-      showWindow();
-      // Replay the entrance (without the spoken greeting) if the window was away.
-      if (wasHidden) inDash("window.jarvisWake && jarvisWake(true, { silent: true })");
+      // Closed: open with the entrance and greeting, then listen once it's said hello.
+      // Already open: the voice engine is listening for your command right away.
+      if (reveal(true)) listenForFollowUp();
     },
     onState: voiceState,
     onTranscript: async (text) => {
@@ -210,6 +232,7 @@ function startVoice() {
     onError: fail
   });
   const v = voice;
+  syncWakeMode();
   Promise.resolve().then(() => v.start()).then(() => updateTray("idle"), (e) => { if (voice === v) voice = null; fail(e); });
 }
 function stopVoice() { followUpRun++; if (voice) { voice.stop(); voice = null; } }
@@ -255,10 +278,15 @@ class VoiceProcess {
         const err = new Error("The voice engine stopped (code " + code + ")");
         if (started) o.onError(err); else reject(err);
       });
+      if (this.captureOnWake !== undefined) child.postMessage({ type: "captureOnWake", value: this.captureOnWake });
       child.postMessage({ type: "start", opts });
     });
   }
   listenNow(opts) { if (this.child) this.child.postMessage({ type: "listen", opts }); }
+  setCaptureOnWake(value) {
+    this.captureOnWake = value;
+    if (this.child) this.child.postMessage({ type: "captureOnWake", value });
+  }
   stop() {
     this.stopped = true;
     const c = this.child;
@@ -298,7 +326,7 @@ function updateTray(state) {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: status, enabled: false },
     { type: "separator" },
-    { label: "Open Jarvis", click: showWindow },
+    { label: "Open Jarvis", click: () => reveal(true) },
     { label: "Talk now (" + HOTKEY.replace("Alt", "⌥") + ")", enabled: !!voice, click: talkNow },
     { label: "Listen for “Hey Jarvis”", type: "checkbox", checked: !!c.listening, click: (i) => { const n = readConfig(); n.listening = i.checked; writeConfig(n); startVoice(); } },
     { label: "Start when my Mac starts", type: "checkbox", checked: !!c.openAtLogin, click: (i) => { const n = readConfig(); n.openAtLogin = i.checked; writeConfig(n); applyLogin(); } },
@@ -309,7 +337,7 @@ function updateTray(state) {
   ]));
 }
 function talkNow() {
-  showWindow();
+  reveal(false);
   if (voice) voice.listenNow();
 }
 function applyLogin() {
@@ -344,8 +372,8 @@ ipcMain.handle("settings:save", (e, s) => {
 });
 
 // ------------------------------------------------------------------ boot --
-app.on("second-instance", showWindow);
-app.on("activate", showWindow);
+app.on("second-instance", () => reveal(true));
+app.on("activate", () => reveal(true));
 app.on("before-quit", () => { quitting = true; stopVoice(); });
 
 app.whenReady().then(async () => {

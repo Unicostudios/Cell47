@@ -6,6 +6,7 @@
 const { Voice } = require("./voice.js");
 
 let voice = null;
+let captureOnWake = true;
 const send = (m) => process.parentPort.postMessage(m);
 const msg = (e) => (e && e.message) || String(e);
 
@@ -18,8 +19,12 @@ process.parentPort.on("message", async (e) => {
       onTranscript: (text) => send({ type: "transcript", text }),
       onError: (err) => send({ type: "error", message: msg(err) })
     }));
+    voice.captureOnWake = captureOnWake;
     try { await voice.start(); send({ type: "started" }); }
     catch (err) { send({ type: "startError", message: msg(err) }); }
+  } else if (m.type === "captureOnWake") {
+    captureOnWake = !!m.value;
+    if (voice) voice.captureOnWake = captureOnWake;
   } else if (m.type === "listen") {
     if (voice) voice.listenNow(m.opts);
   } else if (m.type === "stop") {

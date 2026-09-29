@@ -63,6 +63,7 @@ class Voice {
     this.mode = "off";
     this.noise = 300;
     this.cooldownMs = 0;
+    this.captureOnWake = true;   // false while the window is closed: main greets first, then listens
   }
 
   async start() {
@@ -108,7 +109,8 @@ class Voice {
         if (this.mode !== "wake") continue;
         if (score >= this.threshold) {
           this.o.onWake();
-          this.beginCapture();
+          if (this.captureOnWake) this.beginCapture();
+          else { this.wake.reset(); this.cooldownMs = COOLDOWN_MS; }
         }
       } else if (this.mode === "capture") {
         this.capture(frame);
