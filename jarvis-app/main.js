@@ -13,7 +13,7 @@
  */
 const {
   app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, safeStorage,
-  shell, session, globalShortcut, Notification, systemPreferences, utilityProcess
+  shell, session, globalShortcut, Notification, systemPreferences, utilityProcess, WebContentsView
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
@@ -28,7 +28,8 @@ app.commandLine.appendSwitch("enable-gpu-rasterization");
 app.commandLine.appendSwitch("enable-zero-copy");
 if (!app.requestSingleInstanceLock()) app.quit();
 
-let win = null, tray = null, settingsWin = null, voice = null;
+let win = null, view = null, tray = null, settingsWin = null, voice = null;
+let cropTop = 0;   // height of claude.ai's bar above the dashboard, pushed out of sight
 let quitting = false;
 
 // ---------------------------------------------------------------- config --
@@ -59,8 +60,8 @@ function keys() {
 
 // ------------------------------------------------------------- dashboard --
 async function dashFrame() {
-  if (!win) return null;
-  for (const f of win.webContents.mainFrame.framesInSubtree) {
+  if (!view) return null;
+  for (const f of view.webContents.mainFrame.framesInSubtree) {
     try { if (await f.executeJavaScript("!!document.getElementById('cmd-input')")) return f; } catch (e) {}
   }
   return null;
@@ -89,14 +90,22 @@ function createWindow() {
     titleBarStyle: "hiddenInset",
     backgroundColor: "#ffffff",
     show: false,
-    fullscreenable: true,
-    webPreferences: { partition: PARTITION, contextIsolation: true, sandbox: true }
+    fullscreenable: true
   });
-  win.loadURL(DASHBOARD_URL);
-  win.once("ready-to-show", () => { win.show(); goFullScreen(); });
+  // The page sits in its own view inside the window. The view is placed a little
+  // above the window's top edge, so claude.ai's bar over the dashboard is simply
+  // out of sight: nothing on claude.ai's page is changed.
+  view = new WebContentsView({ webPreferences: { partition: PARTITION, contextIsolation: true, sandbox: true } });
+  view.setBackgroundColor("#ffffff");
+  win.contentView.addChildView(view);
+  layout();
+  for (const ev of ["resize", "enter-full-screen", "leave-full-screen"]) win.on(ev, layout);
+  const wc = view.webContents;
+  wc.loadURL(DASHBOARD_URL);
+  win.show(); goFullScreen();
 
   // Links open in your normal browser; sign-in pop-ups stay inside the app.
-  win.webContents.setWindowOpenHandler(({ url }) => {
+  wc.setWindowOpenHandler(({ url }) => {
     if (/^https:\/\/([a-z0-9-]+\.)*(claude\.ai|anthropic\.com|google\.com|apple\.com|notion\.so|notion\.com)\//i.test(url) &&
         /(login|oauth|auth|signin|sso|consent|accounts)/i.test(url)) {
       return { action: "allow", overrideBrowserWindowOptions: { width: 520, height: 720, webPreferences: { partition: PARTITION } } };
@@ -106,11 +115,13 @@ function createWindow() {
   });
 
   // Tell the dashboard it's running inside the app (hint text, silent wake).
-  win.webContents.on("did-frame-finish-load", () => {
+  wc.on("did-frame-finish-load", () => {
     setTimeout(() => inDash("window.__inJarvisApp = true; window.jarvisAppReady && jarvisAppReady();"), 400);
-    fillWindow();
+    measureCrop();
   });
-  win.webContents.on("did-finish-load", fillWindow);
+  wc.on("did-finish-load", measureCrop);
+  wc.on("did-navigate", () => { cropTop = 0; layout(); });   // e.g. the sign-in page: show all of it
+  setInterval(measureCrop, 2000);
 
   // Closing keeps Jarvis running. Leave full screen first, so macOS doesn't
   // leave an empty full-screen space behind, then hide.
@@ -122,68 +133,38 @@ function createWindow() {
   });
 }
 
-// The dashboard lives in an iframe on claude.ai's page. Stretch that frame over
-// the whole window so claude.ai's own top bar is hidden, and add a thin strip at
-// the top so the window can still be dragged (the traffic lights sit on it).
-const FILL_JS = `(() => {
-  if (!location.pathname.startsWith("/artifact/")) return;
-  const pick = () => {
-    let best = null, area = 0;
-    for (const f of document.querySelectorAll("iframe")) {
-      const r = f.getBoundingClientRect(), a = r.width * r.height;
-      if (a > area) { area = a; best = f; }
-    }
-    return best;
-  };
-  const hide = (el) => { el.style.setProperty("display", "none", "important"); el.dataset.jarvisHidden = "1"; };
-  let done = null;
-  const apply = () => {
-    const f = pick();
-    if (!f) return;
-    // Already filling the window? Nothing to do (keeps this check nearly free).
-    if (done === f) {
-      const r = f.getBoundingClientRect();
-      if (r.top === 0 && r.left === 0 && r.width === innerWidth && r.height === innerHeight) return;
-    }
-    // Hide everything that sits above the dashboard (claude.ai's own bar), at every level.
-    const top = f.getBoundingClientRect().top;
-    let el = f;
-    while (el && el !== document.body && el.parentElement) {
-      const parent = el.parentElement;
-      for (const sib of parent.children) {
-        if (sib === el || sib.contains(f) || sib.dataset.jarvisHidden || sib.id === "jarvis-drag") continue;
-        const r = sib.getBoundingClientRect();
-        if (r.height > 0 && r.bottom <= top + 2) hide(sib);
-      }
-      // let every container on the way up take the full window
-      parent.style.setProperty("padding", "0", "important");
-      parent.style.setProperty("margin", "0", "important");
-      parent.style.setProperty("border-radius", "0", "important");
-      el = parent;
-    }
-    // …and make the dashboard itself fill the window.
-    f.style.setProperty("width", "100vw", "important");
-    f.style.setProperty("height", "100vh", "important");
-    f.style.setProperty("border", "0", "important");
-    f.style.setProperty("border-radius", "0", "important");
-    document.documentElement.style.setProperty("overflow", "hidden", "important");
-    if (!document.getElementById("jarvis-drag")) {
-      const d = document.createElement("div");
-      d.id = "jarvis-drag";
-      d.style.cssText = "position:fixed;top:0;left:0;right:0;height:30px;z-index:2147483601;-webkit-app-region:drag;";
-      document.body.appendChild(d);
-    }
-    done = f;
-  };
-  apply();
-  if (!window.__jarvisFillTimer) {
-    window.__jarvisFillTimer = setInterval(apply, 3000);
-    addEventListener("resize", apply);
+function layout() {
+  if (!win || !view) return;
+  const [w, h] = win.getContentSize();
+  view.setBounds({ x: 0, y: -cropTop, width: w, height: h + cropTop });
+}
+
+// On the dashboard page, find how far down claude.ai puts the dashboard frame.
+// Also keeps a thin invisible strip along the top of the window for dragging it.
+const MEASURE_JS = `(() => {
+  if (!location.pathname.startsWith("/artifact/")) return 0;
+  let best = null, area = 0;
+  for (const f of document.querySelectorAll("iframe")) {
+    const r = f.getBoundingClientRect(), a = r.width * r.height;
+    if (a > area) { area = a; best = f; }
   }
-})();`;
-function fillWindow() {
-  if (!win) return;
-  win.webContents.executeJavaScript(FILL_JS).catch(() => {});
+  if (!best || area < innerWidth * innerHeight * 0.4) return 0;
+  const top = Math.max(0, Math.min(200, Math.round(best.getBoundingClientRect().top)));
+  let d = document.getElementById("jarvis-drag");
+  if (!d) {
+    d = document.createElement("div");
+    d.id = "jarvis-drag";
+    d.style.cssText = "position:fixed;left:0;right:0;height:30px;z-index:2147483601;-webkit-app-region:drag;";
+    document.body.appendChild(d);
+  }
+  d.style.top = top + "px";
+  return top;
+})()`;
+async function measureCrop() {
+  if (!view) return;
+  let top = 0;
+  try { top = Number(await view.webContents.executeJavaScript(MEASURE_JS)) || 0; } catch (e) {}
+  if (top !== cropTop) { cropTop = top; layout(); }
 }
 
 // Jarvis always runs full screen.
@@ -322,7 +303,7 @@ function updateTray(state) {
     { label: "Listen for “Hey Jarvis”", type: "checkbox", checked: !!c.listening, click: (i) => { const n = readConfig(); n.listening = i.checked; writeConfig(n); startVoice(); } },
     { label: "Start when my Mac starts", type: "checkbox", checked: !!c.openAtLogin, click: (i) => { const n = readConfig(); n.openAtLogin = i.checked; writeConfig(n); applyLogin(); } },
     { label: "Settings…", click: openSettings },
-    { label: "Reload dashboard", click: () => win && win.webContents.reload() },
+    { label: "Reload dashboard", click: () => view && view.webContents.reload() },
     { type: "separator" },
     { label: "Quit Jarvis", click: () => { quitting = true; app.quit(); } }
   ]));
