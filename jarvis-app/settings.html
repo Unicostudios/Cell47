@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<title>Jarvis Settings</title>
+<style>
+  :root { --canvas:#e7e6e0; --ink:#17170f; --soft:#5d5d54; --faint:#9b9a90; --line:rgba(23,23,15,.1); --lime:#d4f24c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 44px 28px 24px; background: var(--canvas); color: var(--ink);
+    font: 14px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; -webkit-app-region: drag; }
+  input, button, label { -webkit-app-region: no-drag; }
+  .head { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+  .orb { width: 44px; height: 44px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #f4ffb0, #c9ec3f 48%, #6f8a14); display: flex; align-items: center; justify-content: center; gap: 3px; }
+  .orb i { width: 3.5px; height: 10px; border-radius: 2px; background: #1a1c0b; } .orb i:nth-child(2) { height: 16px; }
+  h1 { font-size: 20px; font-weight: 500; margin: 0; letter-spacing: -.02em; }
+  .sub { color: var(--soft); font-size: 12.5px; margin: 2px 0 0; }
+  .field { background: rgba(255,255,255,.65); border: 1px solid rgba(255,255,255,.9); border-radius: 18px; padding: 14px 16px; margin-bottom: 12px; }
+  .field label { display: block; font-weight: 500; margin-bottom: 4px; }
+  .field p { margin: 0 0 8px; color: var(--soft); font-size: 12px; line-height: 1.45; }
+  .field input[type=password], .field input[type=text] { width: 100%; font: inherit; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; outline: none; }
+  .field input:focus { border-color: var(--ink); }
+  .saved { font-size: 11.5px; color: #4d7d16; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  input[type=range] { width: 180px; accent-color: #9cc41e; }
+  .checks label { display: flex; align-items: center; gap: 8px; font-weight: 400; margin: 4px 0; }
+  .actions { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; }
+  button { font: inherit; font-weight: 500; border: none; border-radius: 999px; padding: 10px 22px; background: var(--ink); color: #f5f4ee; cursor: pointer; }
+  #status { font-size: 12.5px; color: var(--soft); }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div class="orb"><i></i><i></i><i></i></div>
+    <div><h1>Jarvis Settings</h1><p class="sub">Keys stay on this Mac, in your Keychain.</p></div>
+  </div>
+
+  <div class="field">
+    <label for="pv">Picovoice access key</label>
+    <p>For “Hey Jarvis”. Free at console.picovoice.ai. The wake word runs entirely on your Mac.</p>
+    <input id="pv" type="password" placeholder="Paste your access key" autocomplete="off">
+    <span class="saved" id="pv-saved" hidden>Saved ✓ (paste a new one to replace it)</span>
+  </div>
+
+  <div class="field">
+    <label for="el">ElevenLabs API key</label>
+    <p>Turns what you say into text. The same sk_… key as your voice connector; it needs “Speech to Text” allowed.</p>
+    <input id="el" type="password" placeholder="sk_…" autocomplete="off">
+    <span class="saved" id="el-saved" hidden>Saved ✓ (paste a new one to replace it)</span>
+  </div>
+
+  <div class="field">
+    <div class="row"><label for="sens">Wake word sensitivity</label><input id="sens" type="range" min="0.3" max="0.9" step="0.05"></div>
+    <p>Higher hears you more easily but may wake by mistake. Default is in the middle.</p>
+    <div class="checks">
+      <label><input type="checkbox" id="listening"> Listen for “Hey Jarvis”</label>
+      <label><input type="checkbox" id="login"> Start Jarvis when my Mac starts</label>
+    </div>
+  </div>
+
+  <div class="actions"><span id="status"></span><button id="save">Save</button></div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  jarvisSettings.get().then((s) => {
+    $("pv-saved").hidden = !s.hasPicovoice; $("el-saved").hidden = !s.hasElevenlabs;
+    $("sens").value = s.sensitivity; $("listening").checked = !!s.listening; $("login").checked = !!s.openAtLogin;
+  });
+  $("save").addEventListener("click", () => {
+    $("status").textContent = "Saving…";
+    jarvisSettings.save({
+      picovoice: $("pv").value, elevenlabs: $("el").value, sensitivity: $("sens").value,
+      listening: $("listening").checked, openAtLogin: $("login").checked
+    }).then((r) => {
+      $("pv").value = ""; $("el").value = "";
+      return jarvisSettings.get().then((s) => {
+        $("pv-saved").hidden = !s.hasPicovoice; $("el-saved").hidden = !s.hasElevenlabs;
+        $("status").textContent = r.listening ? "Saved. Say “Hey Jarvis” to try it." : (s.listening ? "Saved. Add both keys to start listening." : "Saved. Listening is off.");
+      });
+    });
+  });
+</script>
+</body>
+</html>
