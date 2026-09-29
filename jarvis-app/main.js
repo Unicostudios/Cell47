@@ -99,9 +99,46 @@ function createWindow() {
   // Tell the dashboard it's running inside the app (hint text, silent wake).
   win.webContents.on("did-frame-finish-load", () => {
     setTimeout(() => inDash("window.__inJarvisApp = true; window.jarvisAppReady && jarvisAppReady();"), 400);
+    fillWindow();
   });
+  win.webContents.on("did-finish-load", fillWindow);
 
   win.on("close", (e) => { if (!quitting) { e.preventDefault(); win.hide(); } });
+}
+
+// The dashboard lives in an iframe on claude.ai's page. Stretch that frame over
+// the whole window so claude.ai's own top bar is hidden, and add a thin strip at
+// the top so the window can still be dragged (the traffic lights sit on it).
+const FILL_JS = `(() => {
+  if (!location.pathname.startsWith("/artifact/")) return;
+  const pick = () => {
+    let best = null, area = 0;
+    for (const f of document.querySelectorAll("iframe")) {
+      const r = f.getBoundingClientRect(), a = r.width * r.height;
+      if (a > area) { area = a; best = f; }
+    }
+    return best;
+  };
+  const apply = () => {
+    const f = pick();
+    if (!f) return;
+    if (f.dataset.jarvisFill !== "1") {
+      f.dataset.jarvisFill = "1";
+      f.style.cssText += ";position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;border:0!important;border-radius:0!important;z-index:2147483600!important;";
+    }
+    if (!document.getElementById("jarvis-drag")) {
+      const d = document.createElement("div");
+      d.id = "jarvis-drag";
+      d.style.cssText = "position:fixed;top:0;left:0;right:0;height:30px;z-index:2147483601;-webkit-app-region:drag;";
+      document.body.appendChild(d);
+    }
+  };
+  apply();
+  if (!window.__jarvisFillTimer) window.__jarvisFillTimer = setInterval(apply, 1500);
+})();`;
+function fillWindow() {
+  if (!win) return;
+  win.webContents.executeJavaScript(FILL_JS).catch(() => {});
 }
 
 function showWindow() {
