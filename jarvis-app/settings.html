@@ -36,21 +36,14 @@
   </div>
 
   <div class="field">
-    <label for="pv">Picovoice access key</label>
-    <p>For “Hey Jarvis”. Free at console.picovoice.ai. The wake word runs entirely on your Mac.</p>
-    <input id="pv" type="password" placeholder="Paste your access key" autocomplete="off">
-    <span class="saved" id="pv-saved" hidden>Saved ✓ (paste a new one to replace it)</span>
-  </div>
-
-  <div class="field">
     <label for="el">ElevenLabs API key</label>
-    <p>Turns what you say into text. The same sk_… key as your voice connector; it needs “Speech to Text” allowed.</p>
+    <p>Turns what you say into text after “Hey Jarvis”. The same sk_… key as your voice connector; it needs “Speech to Text” allowed. The wake word itself runs on your Mac, free.</p>
     <input id="el" type="password" placeholder="sk_…" autocomplete="off">
     <span class="saved" id="el-saved" hidden>Saved ✓ (paste a new one to replace it)</span>
   </div>
 
   <div class="field">
-    <div class="row"><label for="sens">Wake word sensitivity</label><input id="sens" type="range" min="0.3" max="0.9" step="0.05"></div>
+    <div class="row"><label for="sens">Wake word sensitivity</label><input id="sens" type="range" min="0.2" max="0.8" step="0.05"></div>
     <p>Higher hears you more easily but may wake by mistake. Default is in the middle.</p>
     <div class="checks">
       <label><input type="checkbox" id="listening"> Listen for “Hey Jarvis”</label>
@@ -63,19 +56,19 @@
 <script>
   const $ = (id) => document.getElementById(id);
   jarvisSettings.get().then((s) => {
-    $("pv-saved").hidden = !s.hasPicovoice; $("el-saved").hidden = !s.hasElevenlabs;
+    $("el-saved").hidden = !s.hasElevenlabs;
     $("sens").value = s.sensitivity; $("listening").checked = !!s.listening; $("login").checked = !!s.openAtLogin;
   });
   $("save").addEventListener("click", () => {
     $("status").textContent = "Saving…";
     jarvisSettings.save({
-      picovoice: $("pv").value, elevenlabs: $("el").value, sensitivity: $("sens").value,
+      elevenlabs: $("el").value, sensitivity: $("sens").value,
       listening: $("listening").checked, openAtLogin: $("login").checked
     }).then((r) => {
-      $("pv").value = ""; $("el").value = "";
+      $("el").value = "";
       return jarvisSettings.get().then((s) => {
-        $("pv-saved").hidden = !s.hasPicovoice; $("el-saved").hidden = !s.hasElevenlabs;
-        $("status").textContent = r.listening ? "Saved. Say “Hey Jarvis” to try it." : (s.listening ? "Saved. Add both keys to start listening." : "Saved. Listening is off.");
+        $("el-saved").hidden = !s.hasElevenlabs;
+        $("status").textContent = !s.listening ? "Saved. Listening is off." : s.hasElevenlabs ? "Saved. Say “Hey Jarvis” to try it." : "Saved. Add your ElevenLabs key to start listening.";
       });
     });
   });

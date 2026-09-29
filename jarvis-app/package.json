@@ -2,17 +2,18 @@
   "name": "jarvis",
   "productName": "Jarvis",
   "version": "1.0.0",
-  "description": "Jarvis for the Ops Desk dashboard: its own Mac window, \"Hey Jarvis\" wake word, hands-free voice commands.",
+  "description": "Jarvis for the Ops Desk dashboard: its own Mac window, \"Hey Jarvis\" wake word (on-device, free), hands-free voice commands.",
   "main": "main.js",
   "private": true,
   "scripts": {
+    "postinstall": "node scripts/fetch-models.js",
     "start": "electron .",
-    "app": "electron-builder --mac --dir",
+    "app": "electron-builder --mac --dir --arm64",
     "check": "node -e \"require('./voice.js'); console.log('voice module OK')\""
   },
   "dependencies": {
-    "@picovoice/porcupine-node": "4.0.2",
-    "@picovoice/pvrecorder-node": "1.2.9"
+    "@picovoice/pvrecorder-node": "1.2.9",
+    "onnxruntime-node": "1.30.0"
   },
   "devDependencies": {
     "electron": "44.4.5",
@@ -28,13 +29,16 @@
     "files": [
       "main.js",
       "voice.js",
+      "wakeword.js",
       "settings.html",
       "settings-preload.js",
       "assets/**",
+      "models/**",
       "package.json"
     ],
     "asarUnpack": [
-      "node_modules/@picovoice/**"
+      "node_modules/@picovoice/**",
+      "node_modules/onnxruntime-node/**"
     ],
     "mac": {
       "target": [
@@ -45,7 +49,7 @@
       "identity": "-",
       "hardenedRuntime": false,
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "Jarvis listens for \"Hey Jarvis\" and your voice commands. Audio stays on this Mac until you say the wake word.",
+        "NSMicrophoneUsageDescription": "Jarvis listens for \"Hey Jarvis\" on your Mac. Only what you say after the wake word is sent to be transcribed.",
         "LSUIElement": false
       }
     },

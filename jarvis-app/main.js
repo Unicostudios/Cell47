@@ -7,9 +7,9 @@
  *   Ask Jarvis bar, which does the work and answers out loud.
  * - Sound is allowed without a tap, so the spoken greeting always plays.
  *
- * Keys (Picovoice, ElevenLabs) are entered in Settings and kept in the
- * macOS Keychain-backed store (safeStorage); they never leave this Mac
- * except to call those two services.
+ * "Hey Jarvis" is detected on-device with openWakeWord (free, no key).
+ * The ElevenLabs key is entered in Settings and kept encrypted with the
+ * macOS Keychain (safeStorage); it's only sent to ElevenLabs.
  */
 const {
   app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, safeStorage,
@@ -31,7 +31,7 @@ let quitting = false;
 
 // ---------------------------------------------------------------- config --
 const CONFIG_FILE = () => path.join(app.getPath("userData"), "config.json");
-const DEFAULTS = { listening: true, openAtLogin: true, sensitivity: 0.6, sttModel: "scribe_v1" };
+const DEFAULTS = { listening: true, openAtLogin: true, sensitivity: 0.5, sttModel: "scribe_v1" };
 
 function readConfig() {
   try { return Object.assign({}, DEFAULTS, JSON.parse(fs.readFileSync(CONFIG_FILE(), "utf8"))); }
@@ -52,7 +52,7 @@ function unseal(s) {
 }
 function keys() {
   const c = readConfig();
-  return { picovoice: unseal(c.picovoiceKey), elevenlabs: unseal(c.elevenlabsKey) };
+  return { elevenlabs: unseal(c.elevenlabsKey) };
 }
 
 // ------------------------------------------------------------- dashboard --
@@ -121,12 +121,12 @@ function startVoice() {
   stopVoice();
   const c = readConfig(), k = keys();
   if (!c.listening) return updateTray();
-  if (!k.picovoice || !k.elevenlabs) { updateTray(); return openSettings(); }
+  if (!k.elevenlabs) { updateTray(); return openSettings(); }
   let Voice;
   try { Voice = require("./voice.js").Voice; } catch (e) { return fail(e); }
   voice = new Voice({
-    picovoiceKey: k.picovoice, elevenlabsKey: k.elevenlabs,
-    sensitivity: Number(c.sensitivity) || 0.6, sttModel: c.sttModel,
+    modelDir: path.join(__dirname, "models"), elevenlabsKey: k.elevenlabs,
+    sensitivity: Number(c.sensitivity) || 0.5, sttModel: c.sttModel,
     onWake: () => {
       const wasHidden = !win || !win.isVisible() || !win.isFocused();
       showWindow();
@@ -141,7 +141,8 @@ function startVoice() {
     },
     onError: fail
   });
-  try { voice.start(); updateTray("idle"); } catch (e) { voice = null; fail(e); }
+  const v = voice;
+  Promise.resolve().then(() => v.start()).then(() => updateTray("idle"), (e) => { if (voice === v) voice = null; fail(e); });
 }
 function stopVoice() { if (voice) { voice.stop(); voice = null; } }
 
@@ -149,7 +150,7 @@ function fail(e) {
   const msg = (e && e.message) || String(e);
   console.error("[jarvis]", msg);
   let hint = msg;
-  if (/AccessKey|activation|0000013/i.test(msg)) hint = "Your Picovoice access key was rejected. Check it in Settings.";
+  if (/onnx|model|ENOENT/i.test(msg)) hint = "The Hey Jarvis model files are missing. In Terminal: cd ~/Cell47/jarvis-app && npm install, then rebuild.";
   else if (/401|invalid_api_key|unauthorized/i.test(msg)) hint = "ElevenLabs rejected the key. Use the sk_… key, with Speech to Text allowed.";
   else if (/device|audio|recorder|microphone/i.test(msg)) hint = "Couldn't open the microphone. Allow Jarvis in System Settings → Privacy & Security → Microphone.";
   notify("Jarvis", hint);
@@ -205,11 +206,10 @@ function openSettings() {
 }
 ipcMain.handle("settings:get", () => {
   const c = readConfig(), k = keys();
-  return { hasPicovoice: !!k.picovoice, hasElevenlabs: !!k.elevenlabs, sensitivity: c.sensitivity, listening: c.listening, openAtLogin: c.openAtLogin };
+  return { hasElevenlabs: !!k.elevenlabs, sensitivity: c.sensitivity, listening: c.listening, openAtLogin: c.openAtLogin };
 });
 ipcMain.handle("settings:save", (e, s) => {
   const c = readConfig();
-  if (s.picovoice) c.picovoiceKey = seal(String(s.picovoice).trim());
   if (s.elevenlabs) c.elevenlabsKey = seal(String(s.elevenlabs).trim());
   if (s.sensitivity != null) c.sensitivity = Math.min(0.95, Math.max(0.2, Number(s.sensitivity)));
   if (s.listening != null) c.listening = !!s.listening;
