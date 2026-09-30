@@ -36,8 +36,8 @@
   </div>
 
   <div class="field">
-    <label for="el">ElevenLabs API key</label>
-    <p>Turns what you say into text after “Hey Jarvis”. The same sk_… key as your voice connector; it needs “Speech to Text” allowed. The wake word itself runs on your Mac, free.</p>
+    <label for="el">ElevenLabs API key (optional)</label>
+    <p>Not needed: “Hey Jarvis” and turning what you say into text both run on your Mac, free. The key is only a backup if the on-device speech model is missing.</p>
     <input id="el" type="password" placeholder="sk_…" autocomplete="off">
     <span class="saved" id="el-saved" hidden>Saved ✓ (paste a new one to replace it)</span>
   </div>
@@ -68,7 +68,7 @@
       $("el").value = "";
       return jarvisSettings.get().then((s) => {
         $("el-saved").hidden = !s.hasElevenlabs;
-        $("status").textContent = !s.listening ? "Saved. Listening is off." : s.hasElevenlabs ? "Saved. Say “Hey Jarvis” to try it." : "Saved. Add your ElevenLabs key to start listening.";
+        $("status").textContent = !s.listening ? "Saved. Listening is off." : "Saved. Say “Hey Jarvis” to try it.";
       });
     });
   });

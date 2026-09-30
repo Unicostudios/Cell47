@@ -2,7 +2,7 @@
   "name": "jarvis",
   "productName": "Jarvis",
   "version": "1.0.0",
-  "description": "Jarvis for the Ops Desk dashboard: its own Mac window, \"Hey Jarvis\" wake word (on-device, free), hands-free voice commands.",
+  "description": "Jarvis for the Ops Desk dashboard: its own Mac window, \"Hey Jarvis\" wake word and speech-to-text on-device (free), hands-free voice commands.",
   "main": "main.js",
   "private": true,
   "scripts": {
@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@picovoice/pvrecorder-node": "1.2.9",
-    "onnxruntime-node": "1.30.0"
+    "onnxruntime-node": "1.30.0",
+    "sherpa-onnx-node": "1.13.8"
   },
   "devDependencies": {
     "electron": "44.4.5",
@@ -39,7 +40,10 @@
     ],
     "asarUnpack": [
       "node_modules/@picovoice/**",
-      "node_modules/onnxruntime-node/**"
+      "node_modules/onnxruntime-node/**",
+      "node_modules/sherpa-onnx-node/**",
+      "node_modules/sherpa-onnx-darwin-arm64/**",
+      "models/stt/**"
     ],
     "mac": {
       "target": [
@@ -50,7 +54,7 @@
       "identity": "-",
       "hardenedRuntime": false,
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "Jarvis listens for \"Hey Jarvis\" on your Mac. Only what you say after the wake word is sent to be transcribed.",
+        "NSMicrophoneUsageDescription": "Jarvis listens for \"Hey Jarvis\" on your Mac and turns what you say next into text, on the Mac.",
         "LSUIElement": false
       }
     },

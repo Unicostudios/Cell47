@@ -213,7 +213,6 @@ function startVoice() {
   stopVoice();
   const c = readConfig(), k = keys();
   if (!c.listening) return updateTray();
-  if (!k.elevenlabs) { updateTray(); return openSettings(); }
   voice = new VoiceProcess({
     modelDir: path.join(__dirname, "models"), elevenlabsKey: k.elevenlabs,
     sensitivity: Number(c.sensitivity) || 0.5, sttModel: c.sttModel,
