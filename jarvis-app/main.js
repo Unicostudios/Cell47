@@ -1,14 +1,15 @@
 /*
  * Jarvis — a Mac app for the Ops Desk dashboard.
  *
- * - Shows the dashboard in its own window (no browser, no address bar).
+ * - Opens on a voice-first home screen (the living form); the dashboard is one
+ *   button or "Jarvis, open the dashboard" away. A loader covers startup.
  * - Lives in the menu bar and keeps running when the window is closed.
- * - Listens for "Hey Jarvis" and passes what you say to the dashboard's
- *   Ask Jarvis bar, which does the work and answers out loud.
+ * - Always listening: anything you say with "Jarvis" in it is a request, and
+ *   after it answers it listens for your reply. Speech-to-text and Jarvis's
+ *   voice ("Sarah") both run on the Mac (voice.js, tts-worker.js): free.
  * - Sound is allowed without a tap, so the spoken greeting always plays.
  *
- * "Hey Jarvis" is detected on-device with openWakeWord (free, no key).
- * The ElevenLabs key is entered in Settings and kept encrypted with the
+ * An optional ElevenLabs key (backup speech-to-text) is kept encrypted with the
  * macOS Keychain (safeStorage); it's only sent to ElevenLabs.
  */
 const {
@@ -21,7 +22,7 @@ const { spawn } = require("child_process");
 
 const DASHBOARD_URL = "https://claude.ai/artifact/GgHwacYvD1hZgNT9EjZAk5";
 const PARTITION = "persist:jarvis";
-const HOTKEY = "Alt+Space";           // press to talk without the wake word
+const HOTKEY = "Alt+Space";           // press to talk without saying "Jarvis"
 
 app.setName("Jarvis");
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
@@ -29,7 +30,7 @@ app.commandLine.appendSwitch("enable-gpu-rasterization");
 app.commandLine.appendSwitch("enable-zero-copy");
 if (!app.requestSingleInstanceLock()) app.quit();
 
-let win = null, view = null, tray = null, settingsWin = null, voice = null;
+let win = null, view = null, loaderView = null, tray = null, settingsWin = null, voice = null;
 let cropTop = 0;   // height of claude.ai's bar above the dashboard, pushed out of sight
 let quitting = false;
 
@@ -60,12 +61,23 @@ function keys() {
 }
 
 // ------------------------------------------------------------- dashboard --
+let dashCache = null;
 async function dashFrame() {
   if (!view) return null;
+  // Reuse the frame found last time while it's still alive (this runs many times a second).
+  if (dashCache) {
+    try { if (!dashCache.detached && await dashCache.executeJavaScript("!!document.getElementById('cmd-input')")) return dashCache; } catch (e) {}
+    dashCache = null;
+  }
   for (const f of view.webContents.mainFrame.framesInSubtree) {
-    try { if (await f.executeJavaScript("!!document.getElementById('cmd-input')")) return f; } catch (e) {}
+    try { if (await f.executeJavaScript("!!document.getElementById('cmd-input')")) return (dashCache = f); } catch (e) {}
   }
   return null;
+}
+// Fire-and-forget into the cached frame (for the blob's live voice levels).
+function toDashFast(js) {
+  if (dashCache && !dashCache.detached) dashCache.executeJavaScript(js).catch(() => { dashCache = null; });
+  else inDash(js);
 }
 async function inDash(js) {
   const f = await dashFrame();
@@ -89,7 +101,7 @@ function createWindow() {
     width: 1340, height: 900, minWidth: 420, minHeight: 560,
     title: "Jarvis",
     titleBarStyle: "hiddenInset",
-    backgroundColor: "#ffffff",
+    backgroundColor: "#000000",
     show: false,
     fullscreenable: true
   });
@@ -97,8 +109,14 @@ function createWindow() {
   // above the window's top edge, so claude.ai's bar over the dashboard is simply
   // out of sight: nothing on claude.ai's page is changed.
   view = new WebContentsView({ webPreferences: { partition: PARTITION, contextIsolation: true, sandbox: true } });
-  view.setBackgroundColor("#ffffff");
+  view.setBackgroundColor("#000000");
   win.contentView.addChildView(view);
+  // The loader sits on top until the dashboard says it's ready.
+  loaderView = new WebContentsView({ webPreferences: { contextIsolation: true, sandbox: true } });
+  loaderView.setBackgroundColor("#000000");
+  win.contentView.addChildView(loaderView);
+  loaderView.webContents.loadFile(path.join(__dirname, "loader.html"));
+  setTimeout(hideLoader, 40000);   // never leave it up
   layout();
   for (const ev of ["resize", "enter-full-screen", "leave-full-screen"]) win.on(ev, layout);
   const wc = view.webContents;
@@ -117,18 +135,27 @@ function createWindow() {
 
   // Tell the dashboard it's running inside the app (hint text, silent wake).
   wc.on("did-frame-finish-load", () => {
-    setTimeout(() => inDash("window.__inJarvisApp = true; window.__jarvisLocalVoice = " + !!(speaker && speaker.ready) + "; window.jarvisAppReady && jarvisAppReady();"), 400);
+    setTimeout(async () => {
+      const lv = !speaker || speaker.failed ? "'off'" : String(!!speaker.ready);
+      const ok = await inDash("window.__inJarvisApp = true; window.__jarvisLocalVoice = " + lv + "; window.jarvisAppReady && jarvisAppReady();");
+      if (ok) setTimeout(hideLoader, 1500);   // backup, in case the page's own "ready" didn't arrive
+    }, 400);
     measureCrop();
   });
   wc.on("did-finish-load", measureCrop);
   // The dashboard hands speech to the app as console lines ("[jarvis-say]{…}").
   wc.on("console-message", (e) => {
     const text = e && e.message;
+    if (text === "[jarvis-ready]") return hideLoader();
     if (typeof text === "string" && text.startsWith("[jarvis-say]") && speaker) {
       try { speaker.handle(JSON.parse(text.slice(12))); } catch (err) {}
     }
   });
   wc.on("did-navigate", () => { cropTop = 0; layout(); });   // e.g. the sign-in page: show all of it
+  // Not the dashboard (e.g. claude.ai's sign-in page): take the loader away so you can sign in.
+  wc.on("did-finish-load", () => {
+    try { if (!new URL(wc.getURL()).pathname.startsWith("/artifact/")) setTimeout(hideLoader, 600); } catch (e) {}
+  });
   setInterval(measureCrop, 2000);
 
   // Closing keeps Jarvis running. Leave full screen first, so macOS doesn't
@@ -138,7 +165,7 @@ function createWindow() {
     e.preventDefault();
     hideWindow();
   });
-  // While the window is closed, "Hey Jarvis" opens it and greets you before listening.
+  // While the window is closed, "Jarvis" on its own opens it and greets you before listening.
   win.on("show", syncWakeMode);
   win.on("hide", syncWakeMode);
 }
@@ -168,6 +195,19 @@ function layout() {
   if (!win || !view) return;
   const [w, h] = win.getContentSize();
   view.setBounds({ x: 0, y: -cropTop, width: w, height: h + cropTop });
+  if (loaderView) loaderView.setBounds({ x: 0, y: 0, width: w, height: h });
+}
+
+function hideLoader() {
+  const lv = loaderView;
+  if (!lv || lv.leaving) return;
+  lv.leaving = true;
+  lv.webContents.executeJavaScript("window.fadeOut && fadeOut()").catch(() => {});
+  setTimeout(() => {
+    try { win.contentView.removeChildView(lv); } catch (e) {}
+    try { lv.webContents.close(); } catch (e) {}
+    if (loaderView === lv) loaderView = null;
+  }, 650);
 }
 
 // On the dashboard page, find how far down claude.ai puts the dashboard frame.
@@ -221,19 +261,24 @@ class Speaker {
   start() {
     const proc = this.proc = utilityProcess.fork(path.join(__dirname, "tts-worker.js"), [], { serviceName: "Jarvis Speech" });
     proc.on("message", (m) => {
-      if (m.type === "ready") { this.ready = true; inDash("window.__jarvisLocalVoice = true"); }
-      else if (m.type === "initError") console.error("[jarvis] voice:", m.message);
+      if (m.type === "ready") { this.ready = true; inDash("window.__jarvisLocalVoice = true; window.jarvisLocalVoiceReady && jarvisLocalVoiceReady()"); }
+      else if (m.type === "initError") {
+        console.error("[jarvis] voice:", m.message); log("voice model: " + m.message);
+        this.failed = true;
+        inDash("window.__jarvisLocalVoice = 'off'; window.jarvisLocalVoiceReady && jarvisLocalVoiceReady()");
+      }
       else if (m.type === "audio" || m.type === "sayError") {
         const it = m.gen === this.gen && this.items.find((x) => x.id === m.id);
         if (!it) { if (m.file) fs.rm(m.file, { force: true }, () => {}); return; }
-        if (m.type === "audio") it.file = m.file; else it.error = m.message || "error";
+        if (m.type === "audio") { it.file = m.file; it.env = m.env; } else { it.error = m.message || "error"; log("voice error: " + it.error); }
         this.pump();
       }
     });
     proc.on("exit", () => {
       if (this.proc !== proc) return;
       this.ready = false; this.proc = null;
-      inDash("window.__jarvisLocalVoice = false");
+      this.failed = true;
+      inDash("window.__jarvisLocalVoice = 'off'; window.jarvisLocalVoiceReady && jarvisLocalVoiceReady()");
       this.stop();
     });
     proc.postMessage({ type: "init", modelDir: path.join(__dirname, "models") });
@@ -241,6 +286,7 @@ class Speaker {
   handle(m) {
     if (m.op === "say" && this.proc && this.ready) {
       this.items.push({ id: Number(m.id), gen: this.gen });
+      this.syncSpeaking();
       this.proc.postMessage({ type: "say", id: Number(m.id), gen: this.gen, text: String(m.text || "").slice(0, 2000) });
     } else if (m.op === "say") {
       this.report("done", m.id);
@@ -254,14 +300,20 @@ class Speaker {
     for (const it of this.items) if (it.file) fs.rm(it.file, { force: true }, () => {});
     this.items = [];
     if (this.player) { const p = this.player; this.player = null; try { p.kill(); } catch (e) {} }
+    this.syncSpeaking();
+  }
+  // Tell the listener while Jarvis is talking (or about to), so it doesn't hear itself.
+  syncSpeaking() {
+    const on = !!this.player || this.items.length > 0;
+    if (on !== this.speakingNow) { this.speakingNow = on; if (voice) voice.setSpeaking(on); }
   }
   pump() {
     if (this.player) return;
     const it = this.items[0];
-    if (!it || (!it.file && !it.error)) return;
+    if (!it || (!it.file && !it.error)) return this.syncSpeaking();
     this.items.shift();
     if (it.error) { this.report("done", it.id); return this.pump(); }
-    this.report("start", it.id);
+    this.report("start", it.id, it.env);
     const p = this.player = spawn(PLAYER, [it.file], { stdio: "ignore" });
     const finished = () => {
       fs.rm(it.file, { force: true }, () => {});
@@ -273,7 +325,9 @@ class Speaker {
     p.on("exit", finished);
     p.on("error", finished);
   }
-  report(ev, id) { inDash("window.jarvisLocalSpeech && jarvisLocalSpeech(" + JSON.stringify(ev) + "," + Number(id) + ")"); }
+  report(ev, id, env) {
+    inDash("window.jarvisLocalSpeech && jarvisLocalSpeech(" + JSON.stringify(ev) + "," + Number(id) + (env ? "," + JSON.stringify(env) : "") + ")");
+  }
   quit() { this.stop(); if (this.proc) { const p = this.proc; this.proc = null; try { p.kill(); } catch (e) {} } }
 }
 
@@ -290,13 +344,18 @@ function startVoice() {
   voice = new VoiceProcess({
     modelDir: path.join(__dirname, "models"), elevenlabsKey: k.elevenlabs,
     sensitivity: Number(c.sensitivity) || 0.5, sttModel: c.sttModel,
-    onWake: () => {
-      // Closed: open with the entrance and greeting, then listen once it's said hello.
-      // Already open: the voice engine is listening for your command right away.
+    onWake: (hasRequest) => {
+      // "Hey Jarvis, <request>": just open (if closed) and do it.
+      if (hasRequest) { reveal(false); return; }
+      // "Hey Jarvis" on its own. Closed: open with the entrance and greeting, then
+      // listen once it's said hello. Open: the voice engine is already listening.
       if (reveal(true)) listenForFollowUp();
     },
+    onLevel: (v) => toDashFast("window.jarvisLevel && jarvisLevel(" + (Math.round(v * 100) / 100) + ")"),
+    onHeard: (text) => log("heard: " + text),
     onState: voiceState,
     onTranscript: async (text) => {
+      log("command: " + text);
       voiceState("heard", text);
       const ok = await inDash("window.jarvisCommand && jarvisCommand(" + JSON.stringify(text) + ")");
       if (!ok) return notify("Jarvis heard: “" + text + "”", "Open the Jarvis window and sign in to run commands.");
@@ -329,7 +388,7 @@ async function listenForFollowUp() {
 }
 
 // The voice engine (voice.js) runs in its own background process so the mic
-// and wake-word model never slow down the window.
+// and speech models never slow down the window.
 class VoiceProcess {
   constructor(o) { this.o = o; }
   start() {
@@ -341,7 +400,9 @@ class VoiceProcess {
       child.on("message", (m) => {
         if (m.type === "started") { started = true; resolve(); }
         else if (m.type === "startError") reject(new Error(m.message));
-        else if (m.type === "wake") o.onWake();
+        else if (m.type === "wake") o.onWake(m.hasRequest);
+        else if (m.type === "level") { if (o.onLevel) o.onLevel(m.v); }
+        else if (m.type === "heard") { if (o.onHeard) o.onHeard(m.text); }
         else if (m.type === "state") o.onState(m.state, m.detail);
         else if (m.type === "transcript") o.onTranscript(m.text);
         else if (m.type === "error") o.onError(new Error(m.message));
@@ -356,6 +417,7 @@ class VoiceProcess {
     });
   }
   listenNow(opts) { if (this.child) this.child.postMessage({ type: "listen", opts }); }
+  setSpeaking(on) { if (this.child) this.child.postMessage({ type: "speaking", on: !!on }); }
   setCaptureOnWake(value) {
     this.captureOnWake = value;
     if (this.child) this.child.postMessage({ type: "captureOnWake", value });
@@ -370,11 +432,21 @@ class VoiceProcess {
   }
 }
 
+// A plain log in ~/Library/Logs/Jarvis/jarvis.log, so problems can be traced.
+function log(line) {
+  try {
+    const f = path.join(app.getPath("logs"), "jarvis.log");
+    fs.mkdirSync(path.dirname(f), { recursive: true });
+    if (fs.existsSync(f) && fs.statSync(f).size > 2e6) fs.renameSync(f, f + ".old");
+    fs.appendFileSync(f, new Date().toISOString() + "  " + line + "\n");
+  } catch (e) {}
+}
 function fail(e) {
   const msg = (e && e.message) || String(e);
   console.error("[jarvis]", msg);
+  log("error: " + msg);
   let hint = msg;
-  if (/onnx|model|ENOENT/i.test(msg)) hint = "The Hey Jarvis model files are missing. In Terminal: cd ~/Cell47/jarvis-app && npm install, then rebuild.";
+  if (/model|ENOENT/i.test(msg)) hint = "Some Jarvis model files are missing. In Terminal: cd ~/Cell47/jarvis-app && npm install, then rebuild.";
   else if (/401|invalid_api_key|unauthorized/i.test(msg)) hint = "ElevenLabs rejected the key. Use the sk_… key, with Speech to Text allowed.";
   else if (/device|audio|recorder|microphone/i.test(msg)) hint = "Couldn't open the microphone. Allow Jarvis in System Settings → Privacy & Security → Microphone.";
   notify("Jarvis", hint);
@@ -394,14 +466,14 @@ function updateTray(state) {
   if (!tray) return;
   const c = readConfig();
   const status = !c.listening ? "Not listening" : !voice ? "Needs setup" :
-    state === "listening" ? "Listening…" : state === "thinking" ? "Working…" : state === "error" ? "Problem — see Settings" : "Say “Hey Jarvis”";
+    state === "listening" ? "Listening…" : state === "thinking" ? "Working…" : state === "error" ? "Problem — see Settings" : "Say “Jarvis”";
   tray.setToolTip("Jarvis — " + status);
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: status, enabled: false },
     { type: "separator" },
     { label: "Open Jarvis", click: () => reveal(true) },
     { label: "Talk now (" + HOTKEY.replace("Alt", "⌥") + ")", enabled: !!voice, click: talkNow },
-    { label: "Listen for “Hey Jarvis”", type: "checkbox", checked: !!c.listening, click: (i) => { const n = readConfig(); n.listening = i.checked; writeConfig(n); startVoice(); } },
+    { label: "Always listening for “Jarvis”", type: "checkbox", checked: !!c.listening, click: (i) => { const n = readConfig(); n.listening = i.checked; writeConfig(n); startVoice(); } },
     { label: "Start when my Mac starts", type: "checkbox", checked: !!c.openAtLogin, click: (i) => { const n = readConfig(); n.openAtLogin = i.checked; writeConfig(n); applyLogin(); } },
     { label: "Settings…", click: openSettings },
     { label: "Reload dashboard", click: () => view && view.webContents.reload() },

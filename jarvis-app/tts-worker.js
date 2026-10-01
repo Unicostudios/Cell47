@@ -45,6 +45,18 @@ function forSpeech(text) {
     .trim();
 }
 
+// Loudness every 40 ms (0..1), so the blob can move with the voice.
+function envelope(samples, rate) {
+  const step = Math.round(rate * 0.04), out = [];
+  let peak = 1e-6;
+  for (let i = 0; i < samples.length; i += step) {
+    let sum = 0, n = Math.min(step, samples.length - i);
+    for (let j = 0; j < n; j++) sum += samples[i + j] * samples[i + j];
+    const v = Math.sqrt(sum / n); out.push(v); if (v > peak) peak = v;
+  }
+  return out.map((v) => Math.round((v / peak) * 100) / 100);
+}
+
 function pump() {
   if (busy || !queue.length) return;
   busy = true;
@@ -56,7 +68,7 @@ function pump() {
         const a = tts.generate({ text: forSpeech(job.text), sid: VOICE, speed: SPEED, enableExternalBuffer: false });
         const file = path.join(os.tmpdir(), "jarvis-say-" + process.pid + "-" + job.id + ".wav");
         sherpa.writeWave(file, { samples: a.samples, sampleRate: a.sampleRate });
-        send({ type: "audio", id: job.id, gen: job.gen, file });
+        send({ type: "audio", id: job.id, gen: job.gen, file, env: envelope(a.samples, a.sampleRate) });
       } catch (e) {
         send({ type: "sayError", id: job.id, gen: job.gen, message: msg(e) });
       }

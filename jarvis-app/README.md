@@ -3,13 +3,14 @@
 Jarvis is your Ops Desk dashboard as a Mac app. It gives you:
 
 - **Its own window.** There's no browser and no address bar. It sits in the Dock and the menu bar, and keeps running when you close the window.
-- **"Hey Jarvis".** It listens in the background. Say the wake word, then what you want. When you stop talking, it turns what you said into text on your Mac and runs it in the Ask Jarvis bar, and Jarvis answers out loud in its own voice. Listening is free and needs no account.
-- **A keyboard shortcut.** Press **⌥Space** to talk without saying the wake word.
+- **A voice-first home.** It opens on a living silver form that moves as you talk and as Jarvis answers. Click **Open dashboard**, or say "Jarvis, open the dashboard", to see everything; say "go back" or click the logo to return.
+- **Always listening for "Jarvis".** Say "Jarvis, …", "Hey Jarvis, …" or "…, Jarvis?" and it does it. Say just "Jarvis" and it waits for your request. After it answers, you can reply without the name for a few seconds. Anything you say without "Jarvis" is ignored.
+- **A keyboard shortcut.** Press **⌥Space** to talk without saying "Jarvis".
 - **Sound that plays straight away.** The spoken greeting and replies don't need a click first.
 
-The wake word runs entirely on your Mac, using [openWakeWord](https://github.com/dscripka/openWakeWord)'s "Hey Jarvis" model with ONNX Runtime. It uses about 4% of one processor core. What you say after it is turned into text on the Mac too, with the [Moonshine](https://github.com/moonshine-ai/moonshine) model via [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (about 0.1 s per command), so your voice never leaves the Mac. Jarvis's voice ("Sarah", from [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M)) is made on the Mac as well, so speaking is free and unlimited, with no ElevenLabs credits. `npm install` downloads the models (about 600 MB, once). An ElevenLabs key is optional: it's only used as a backup if the speech model is missing, and it's stored encrypted with your macOS Keychain.
+Everything voice runs on your Mac, free, with [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx): Silero VAD notices when you start and stop talking, [Moonshine](https://github.com/moonshine-ai/moonshine) turns each sentence into text (about 0.1 s), and Jarvis speaks with Kokoro's "Sarah" voice. Your voice never leaves the Mac, and nothing uses ElevenLabs credits. While Jarvis is talking it ignores the mic, so it can't hear itself. `npm install` downloads the models (about 650 MB, once). An ElevenLabs key is optional: it's only a backup if the speech-to-text model is missing, and it's stored encrypted with your macOS Keychain. Problems are written to `~/Library/Logs/Jarvis/jarvis.log`.
 
-You need a Mac with Apple Silicon (M1 or later). The pre-trained openWakeWord models are licensed CC BY-NC-SA 4.0, which is fine for personal use. `npm install` downloads them into `models/`.
+You need a Mac with Apple Silicon (M1 or later).
 
 ## Install
 
@@ -30,7 +31,7 @@ The first time you open it:
 1. Allow **Microphone** access when macOS asks.
 2. **Sign in to Claude** in the Jarvis window. You only need to do this once.
 3. Optional: in **Settings** you can paste an **ElevenLabs key** (`sk_…`) as a backup for speech-to-text. Jarvis works without it.
-4. Save, then say **"Hey Jarvis"**.
+4. Say **"Jarvis, what's on today?"**
 
 To try it without building the app, run `npm start`. macOS will then ask for microphone access on behalf of "Electron" rather than Jarvis.
 
@@ -49,7 +50,7 @@ Click the wave icon in the menu bar to:
 
 ## Troubleshooting
 
-- **The wake word never triggers.** Raise **sensitivity** in Settings. Also check the Mac has the microphone under **System Settings → Privacy & Security → Microphone → Jarvis**.
-- **It wakes by accident.** Lower the sensitivity.
+- **It doesn't respond to "Jarvis".** Check the Mac has the microphone under **System Settings → Privacy & Security → Microphone → Jarvis**, and raise **sensitivity** in Settings if you speak softly. `~/Library/Logs/Jarvis/jarvis.log` shows what it heard.
+- **It picks up background noise.** Lower the sensitivity.
 - **"ElevenLabs rejected the key"** (only if you added one). Use the full `sk_…` key, not the key's ID, and make sure the key has Speech to Text allowed.
 - **It hears you, but nothing happens.** Open the window and check you're signed in to Claude. The dashboard needs to have loaded once.

@@ -2,7 +2,7 @@
   "name": "jarvis",
   "productName": "Jarvis",
   "version": "1.0.0",
-  "description": "Jarvis for the Ops Desk dashboard: its own Mac window, \"Hey Jarvis\" wake word and speech-to-text on-device (free), hands-free voice commands.",
+  "description": "Jarvis for the Ops Desk dashboard: its own Mac window, always-on \"Jarvis\" listening, speech-to-text and voice on-device (free).",
   "main": "main.js",
   "private": true,
   "scripts": {
@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@picovoice/pvrecorder-node": "1.2.9",
-    "onnxruntime-node": "1.30.0",
     "sherpa-onnx-node": "1.13.8"
   },
   "devDependencies": {
@@ -32,7 +31,7 @@
       "voice.js",
       "voice-worker.js",
       "tts-worker.js",
-      "wakeword.js",
+      "loader.html",
       "settings.html",
       "settings-preload.js",
       "assets/**",
@@ -41,11 +40,11 @@
     ],
     "asarUnpack": [
       "node_modules/@picovoice/**",
-      "node_modules/onnxruntime-node/**",
       "node_modules/sherpa-onnx-node/**",
       "node_modules/sherpa-onnx-darwin-arm64/**",
       "models/stt/**",
-      "models/tts/**"
+      "models/tts/**",
+      "models/vad/**"
     ],
     "mac": {
       "target": [

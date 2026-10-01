@@ -1,21 +1,17 @@
-#!/usr/bin/env node
 /*
- * Downloads the models Jarvis runs on your Mac into ./models (runs on npm install):
- *  - openWakeWord "Hey Jarvis" (https://github.com/dscripka/openWakeWord; pre-trained
- *    models are CC BY-NC-SA 4.0: fine for personal, non-commercial use)
- *  - Moonshine speech-to-text via sherpa-onnx (https://github.com/k2-fsa/sherpa-onnx),
- *    so what you say is turned into text on the Mac, free.
+ * Downloads the models Jarvis runs on your Mac into ./models (runs on npm install), all free:
+ *  - Silero VAD: notices when you start and stop talking
+ *  - Moonshine speech-to-text (via sherpa-onnx): turns what you say into text
+ *  - Kokoro, voice "Sarah" (via sherpa-onnx): Jarvis's speaking voice
+ * Models are from https://github.com/k2-fsa/sherpa-onnx releases.
  */
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const { execFileSync } = require("child_process");
 
-const BASE = "https://github.com/dscripka/openWakeWord/releases/download/v0.5.1/";
-const FILES = { "melspectrogram.onnx": 1000000, "embedding_model.onnx": 1200000, "hey_jarvis_v0.1.onnx": 1100000 };
 const DIR = path.join(__dirname, "..", "models");
-
-// On-device speech-to-text model (Moonshine base, English).
+const VAD_URL = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx";
 const STT = "sherpa-onnx-moonshine-base-en-int8";
 const STT_FILES = ["preprocess.onnx", "encode.int8.onnx", "uncached_decode.int8.onnx", "cached_decode.int8.onnx", "tokens.txt"];
 // Jarvis's speaking voice: Kokoro v1.0 (voice "Sarah"), about 350 MB, one time.
@@ -24,18 +20,7 @@ const TTS_FILES = ["model.onnx", "voices.bin", "tokens.txt", "lexicon-us-en.txt"
 
 (async () => {
   fs.mkdirSync(DIR, { recursive: true });
-  for (const [name, minBytes] of Object.entries(FILES)) {
-    const dest = path.join(DIR, name);
-    if (fs.existsSync(dest) && fs.statSync(dest).size >= minBytes) continue;
-    process.stdout.write("Downloading " + name + " … ");
-    const res = await fetch(BASE + name);
-    if (!res.ok) throw new Error(name + ": HTTP " + res.status);
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length < minBytes) throw new Error(name + ": download looks incomplete");
-    fs.writeFileSync(dest, buf);
-    console.log(Math.round(buf.length / 1024) + " KB");
-  }
-  console.log("Hey Jarvis models ready.");
+  await fetchVad();
   await fetchSpeechModel();
   await fetchVoiceModel();
 })().catch((e) => { console.error("Couldn't download the Jarvis models: " + e.message); process.exit(1); });
@@ -69,5 +54,18 @@ async function fetchVoiceModel() {
   fs.mkdirSync(dir, { recursive: true });
   for (const f of TTS_FILES) fs.cpSync(path.join(tmp, TTS, f), path.join(dir, f), { recursive: true });
   fs.rmSync(tmp, { recursive: true, force: true });
+  console.log("done");
+}
+
+async function fetchVad() {
+  const dest = path.join(DIR, "vad", "silero_vad.onnx");
+  if (fs.existsSync(dest) && fs.statSync(dest).size > 500000) return console.log("Voice-activity model ready.");
+  process.stdout.write("Downloading the voice-activity model … ");
+  const res = await fetch(VAD_URL);
+  if (!res.ok) throw new Error("voice-activity model: HTTP " + res.status);
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.length < 500000) throw new Error("voice-activity model: download looks incomplete");
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.writeFileSync(dest, buf);
   console.log("done");
 }

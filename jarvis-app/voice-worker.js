@@ -14,7 +14,9 @@ process.parentPort.on("message", async (e) => {
   const m = e.data || {};
   if (m.type === "start") {
     voice = new Voice(Object.assign({}, m.opts, {
-      onWake: () => send({ type: "wake" }),
+      onWake: (hasRequest) => send({ type: "wake", hasRequest: !!hasRequest }),
+      onLevel: (v) => send({ type: "level", v }),
+      onHeard: (text) => send({ type: "heard", text }),
       onState: (state, detail) => send({ type: "state", state, detail }),
       onTranscript: (text) => send({ type: "transcript", text }),
       onError: (err) => send({ type: "error", message: msg(err) })
@@ -25,6 +27,8 @@ process.parentPort.on("message", async (e) => {
   } else if (m.type === "captureOnWake") {
     captureOnWake = !!m.value;
     if (voice) voice.captureOnWake = captureOnWake;
+  } else if (m.type === "speaking") {
+    if (voice) voice.setSpeaking(m.on);
   } else if (m.type === "listen") {
     if (voice) voice.listenNow(m.opts);
   } else if (m.type === "stop") {

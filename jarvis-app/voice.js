@@ -1,23 +1,39 @@
 /*
  * Voice engine for Jarvis (runs in its own background process, see voice-worker.js).
  *
- *   idle mic → "Hey Jarvis" (openWakeWord via ONNX Runtime, fully on-device, free)
- *            → record until you stop talking (simple energy-based end-of-speech)
- *            → speech-to-text on the Mac (Moonshine via sherpa-onnx, free) → transcript
+ *   mic → voice activity detection (Silero VAD) cuts what you say into sentences
+ *       → each sentence is turned into text on the Mac (Moonshine via sherpa-onnx)
+ *       → if it contains "Jarvis" ("Jarvis, …", "Hey Jarvis …", "…, Jarvis?"),
+ *         or Jarvis is waiting for your answer, it's a command.
  *
- * Your voice never leaves the Mac. ElevenLabs speech-to-text is only a backup,
- * used if the on-device model is missing and an ElevenLabs key is set.
+ * Everything runs on the Mac, free; your voice never leaves it. ElevenLabs
+ * speech-to-text is only a backup, used if the on-device model is missing.
+ * While Jarvis itself is talking the mic is ignored, so it can't hear itself.
  */
 const { PvRecorder } = require("@picovoice/pvrecorder-node");   // free, open-source mic capture (no key)
-const { WakeWord, CHUNK } = require("./wakeword.js");
 const path = require("path");
 const fs = require("fs");
 
 const SAMPLE_RATE = 16000;
-const END_SILENCE_MS = 1200;     // this much quiet after speech = you're done
-const NO_SPEECH_MS = 6000;       // nothing said after the wake word → give up
-const MAX_UTTERANCE_MS = 15000;
-const COOLDOWN_MS = 1500;        // ignore re-triggers right after a command
+const FRAME = 512;                 // 32 ms, what the VAD expects
+const MIN_SPEECH_MS = 300;         // shorter blips (a cough, a click) are ignored
+const LISTEN_MS = 7000;            // after "Hey Jarvis" on its own: how long to wait for the request
+const ECHO_TAIL_MS = 350;          // ignore the mic this long after Jarvis stops talking
+
+// "Jarvis" as the speech model may spell it.
+const NAME = "(?:jarvis|jarviss|jarvi|jervis|javis|jarves|jarvus|jarvas|jarvys|garvis|jarvice)";
+const HAS_NAME = new RegExp("\\b" + NAME + "\\b", "i");
+const LEAD = new RegExp("^\\W*(?:(?:hey|hi|hello|ok|okay|yo)\\W+)?" + NAME + "\\b[\\s,.!?:;-]*", "i");
+const TAIL = new RegExp("[\\s,]*(?:hey\\W+)?" + NAME + "\\W*$", "i");
+const MID = new RegExp(",?\\s*\\b" + NAME + "\\b,?", "ig");
+
+/** "Hey Jarvis, add milk." → "add milk." ; "What's next, Jarvis?" → "What's next?" */
+function stripName(text) {
+  let t = String(text || "").trim();
+  t = t.replace(LEAD, "").replace(TAIL, (m) => (/[?!.]$/.test(m.trim()) ? m.trim().slice(-1) : "")).replace(MID, " ");
+  return t.replace(/\s+/g, " ").replace(/^\W+(?=\w)/, "").trim();
+}
+function wordCount(t) { return (String(t).match(/[A-Za-z0-9']+/g) || []).length; }
 
 function rms(frame) {
   let sum = 0;
@@ -25,44 +41,14 @@ function rms(frame) {
   return Math.sqrt(sum / frame.length);
 }
 
-function toWav(frames) {
-  const samples = frames.reduce((n, f) => n + f.length, 0);
-  const buf = Buffer.alloc(44 + samples * 2);
-  buf.write("RIFF", 0); buf.writeUInt32LE(36 + samples * 2, 4); buf.write("WAVE", 8);
+function toWav(samples) {
+  const buf = Buffer.alloc(44 + samples.length * 2);
+  buf.write("RIFF", 0); buf.writeUInt32LE(36 + samples.length * 2, 4); buf.write("WAVE", 8);
   buf.write("fmt ", 12); buf.writeUInt32LE(16, 16); buf.writeUInt16LE(1, 20); buf.writeUInt16LE(1, 22);
   buf.writeUInt32LE(SAMPLE_RATE, 24); buf.writeUInt32LE(SAMPLE_RATE * 2, 28); buf.writeUInt16LE(2, 32); buf.writeUInt16LE(16, 34);
-  buf.write("data", 36); buf.writeUInt32LE(samples * 2, 40);
-  let o = 44;
-  for (const f of frames) for (let i = 0; i < f.length; i++) { buf.writeInt16LE(f[i], o); o += 2; }
+  buf.write("data", 36); buf.writeUInt32LE(samples.length * 2, 40);
+  for (let i = 0, o = 44; i < samples.length; i++, o += 2) buf.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(samples[i] * 32768))), o);
   return buf;
-}
-
-// On-device speech-to-text. Returns null if the model isn't installed.
-function loadLocalStt(modelDir) {
-  // The speech engine reads files itself, so use the unpacked copy inside the built app.
-  const d = path.join(modelDir, "stt").replace(/app\.asar(?=[\\/])/, "app.asar.unpacked");
-  const files = ["preprocess.onnx", "encode.int8.onnx", "uncached_decode.int8.onnx", "cached_decode.int8.onnx", "tokens.txt"];
-  if (!files.every((f) => fs.existsSync(path.join(d, f)))) return null;
-  const sherpa = require("sherpa-onnx-node");
-  const rec = new sherpa.OfflineRecognizer({
-    featConfig: { sampleRate: SAMPLE_RATE, featureDim: 80 },
-    modelConfig: {
-      moonshine: {
-        preprocessor: path.join(d, "preprocess.onnx"), encoder: path.join(d, "encode.int8.onnx"),
-        uncachedDecoder: path.join(d, "uncached_decode.int8.onnx"), cachedDecoder: path.join(d, "cached_decode.int8.onnx")
-      },
-      tokens: path.join(d, "tokens.txt"), numThreads: 2, provider: "cpu", debug: 0
-    }
-  });
-  return (frames) => {
-    const n = frames.reduce((a, f) => a + f.length, 0), samples = new Float32Array(n);
-    let o = 0;
-    for (const f of frames) for (let i = 0; i < f.length; i++) samples[o++] = f[i] / 32768;
-    const stream = rec.createStream();
-    stream.acceptWaveform({ samples, sampleRate: SAMPLE_RATE });
-    rec.decode(stream);
-    return String(rec.getResult(stream).text || "").trim();
-  };
 }
 
 async function transcribe(wav, apiKey, model) {
@@ -82,31 +68,71 @@ async function transcribe(wav, apiKey, model) {
   return String(json.text || "").trim();
 }
 
+// The speech engine reads files itself, so use the unpacked copy inside the built app.
+function unpacked(p) { return p.replace(/app\.asar(?=[\\/])/, "app.asar.unpacked"); }
+
+function loadVad(modelDir, sensitivity) {
+  const model = unpacked(path.join(modelDir, "vad", "silero_vad.onnx"));
+  if (!fs.existsSync(model)) throw new Error("The voice-activity model is missing. In Terminal: cd ~/Cell47/jarvis-app && npm install, then rebuild.");
+  const sherpa = require("sherpa-onnx-node");
+  return new sherpa.Vad({
+    // Settings → sensitivity: higher picks up quieter speech (0.5 → threshold 0.5).
+    sileroVad: { model, threshold: Math.min(0.7, Math.max(0.3, 1 - (Number(sensitivity) || 0.5))), minSilenceDuration: 0.5, minSpeechDuration: 0.25, windowSize: FRAME, maxSpeechDuration: 20 },
+    sampleRate: SAMPLE_RATE, numThreads: 1, debug: 0
+  }, 30);
+}
+
+// On-device speech-to-text. Returns null if the model isn't installed.
+function loadLocalStt(modelDir) {
+  const d = unpacked(path.join(modelDir, "stt"));
+  const files = ["preprocess.onnx", "encode.int8.onnx", "uncached_decode.int8.onnx", "cached_decode.int8.onnx", "tokens.txt"];
+  if (!files.every((f) => fs.existsSync(path.join(d, f)))) return null;
+  const sherpa = require("sherpa-onnx-node");
+  const rec = new sherpa.OfflineRecognizer({
+    featConfig: { sampleRate: SAMPLE_RATE, featureDim: 80 },
+    modelConfig: {
+      moonshine: {
+        preprocessor: path.join(d, "preprocess.onnx"), encoder: path.join(d, "encode.int8.onnx"),
+        uncachedDecoder: path.join(d, "uncached_decode.int8.onnx"), cachedDecoder: path.join(d, "cached_decode.int8.onnx")
+      },
+      tokens: path.join(d, "tokens.txt"), numThreads: 2, provider: "cpu", debug: 0
+    }
+  });
+  return (samples) => {
+    const stream = rec.createStream();
+    stream.acceptWaveform({ samples, sampleRate: SAMPLE_RATE });
+    rec.decode(stream);
+    return String(rec.getResult(stream).text || "").trim();
+  };
+}
+
 class Voice {
   /**
    * @param {object} o
-   *   modelDir, elevenlabsKey, sensitivity (0-1, higher wakes more easily), sttModel,
-   *   onWake(), onState(state, detail), onTranscript(text), onError(err)
+   *   modelDir, elevenlabsKey (optional backup), sttModel,
+   *   onWake(hasRequest), onState(state, detail), onTranscript(text), onLevel(0..1), onHeard(text), onError(err)
    */
   constructor(o) {
     this.o = o;
     this.mode = "off";
-    this.noise = 300;
-    this.cooldownMs = 0;
     this.captureOnWake = true;   // false while the window is closed: main greets first, then listens
+    this.openUntil = 0;          // listening for a request without "Jarvis" until this time
+    this.followUp = false;
+    this.speaking = false;
+    this.mutedUntil = 0;
+    this.chain = Promise.resolve();
+    this.lastLevelAt = 0;
   }
 
   async start() {
     if (this.mode !== "off") return;
     this.mode = "starting";
-    this.wake = await WakeWord.create(this.o.modelDir);
+    this.vad = loadVad(this.o.modelDir, this.o.sensitivity);
     try { this.localStt = loadLocalStt(this.o.modelDir); } catch (e) { this.localStt = null; this.o.onError(e); }
     if (!this.localStt && !this.o.elevenlabsKey) throw new Error("The speech-to-text model is missing. In Terminal: cd ~/Cell47/jarvis-app && npm install, then rebuild.");
-    // sensitivity 0.5 → wake when the model is 50% sure; 0.7 → 30% sure (wakes more easily)
-    this.threshold = Math.min(0.9, Math.max(0.1, 1 - (Number(this.o.sensitivity) || 0.5)));
-    this.recorder = new PvRecorder(CHUNK);
+    this.recorder = new PvRecorder(FRAME);
     this.recorder.start();
-    this.mode = "wake";
+    this.mode = "on";
     this.loop();
   }
 
@@ -117,87 +143,98 @@ class Voice {
     this.recorder = null;
   }
 
-  /**
-   * Start listening for a command right away (keyboard shortcut, or a follow-up
-   * after Jarvis answers). opts.noSpeechMs: how long to wait for you to start talking.
-   */
+  /** Listen for a request without "Jarvis" (keyboard shortcut, or a follow-up after Jarvis answers). */
   listenNow(opts) {
-    if (this.mode === "wake") this.beginCapture(opts);
+    if (this.mode !== "on") return;
+    this.openUntil = Date.now() + ((opts && opts.noSpeechMs) || LISTEN_MS);
+    this.closedAt = 0;
+    this.followUp = !!(opts && opts.followUp);
+    this.o.onState("listening");
+  }
+
+  /** Jarvis is talking (true) or has stopped (false): ignore the mic meanwhile. */
+  setSpeaking(on) {
+    this.speaking = !!on;
+    if (!on) this.mutedUntil = Date.now() + ECHO_TAIL_MS;
+    if (this.vad) { try { this.vad.reset(); } catch (e) {} }
   }
 
   async loop() {
-    while (this.mode !== "off") {
+    while (this.mode === "on") {
       let frame;
       try { frame = await this.recorder.read(); } catch (e) {
         if (this.mode !== "off") this.o.onError(e);
         return;
       }
-      if (this.mode === "wake") {
-        // Background level: drops quickly to quiet, rises only slowly (so speech doesn't count as noise).
-        const r = rms(frame);
-        this.noise = r < this.noise ? this.noise * 0.8 + r * 0.2 : this.noise * 0.998 + r * 0.002;
-        const score = await this.wake.process(frame);
-        if (this.cooldownMs > 0) { this.cooldownMs -= (frame.length / SAMPLE_RATE) * 1000; continue; }
-        if (this.mode !== "wake") continue;
-        if (score >= this.threshold) {
-          this.o.onWake();
-          if (this.captureOnWake) this.beginCapture();
-          else { this.wake.reset(); this.cooldownMs = COOLDOWN_MS; }
+      const now = Date.now();
+      if (this.speaking || now < this.mutedUntil) continue;
+
+      const f = new Float32Array(frame.length);
+      for (let i = 0; i < frame.length; i++) f[i] = frame[i] / 32768;
+      this.vad.acceptWaveform(f);
+
+      // Your voice level, for the blob (only while you're talking).
+      if (this.o.onLevel && now - this.lastLevelAt > 80) {
+        const talking = this.vad.isDetected();
+        if (talking || this.wasTalking) {
+          this.lastLevelAt = now;
+          this.o.onLevel(talking ? Math.min(1, rms(f) * 9) : 0);
         }
-      } else if (this.mode === "capture") {
-        this.capture(frame);
+        this.wasTalking = talking;
+      }
+
+      // Waited for an answer and none came.
+      if (this.openUntil && now > this.openUntil && !this.vad.isDetected()) {
+        this.closedAt = this.openUntil;     // a sentence that started before this still counts
+        this.openUntil = 0;
+        this.o.onState("idle", this.followUp ? "" : "Didn't catch anything");
+      }
+
+      while (!this.vad.isEmpty()) {
+        const seg = this.vad.front(false);   // false: Electron doesn't allow the engine's shared buffers
+        this.vad.pop();
+        const samples = Float32Array.from(seg.samples);
+        const endedAt = Date.now();
+        this.chain = this.chain.then(() => this.handle(samples, endedAt)).catch((e) => this.o.onError(e));
       }
     }
   }
 
-  beginCapture(opts) {
-    if (this.wake) this.wake.reset();
-    this.noSpeechMs = (opts && opts.noSpeechMs) || NO_SPEECH_MS;
-    this.followUp = !!(opts && opts.followUp);
-    this.mode = "capture";
-    this.frames = [];
-    this.heard = false;
-    this.quietMs = 0;
-    this.elapsed = 0;
-    this.o.onState("listening");
+  async toText(samples) {
+    if (this.localStt) return this.localStt(samples);
+    return transcribe(toWav(samples), this.o.elevenlabsKey, this.o.sttModel);
   }
 
-  capture(frame) {
-    const ms = (frame.length / SAMPLE_RATE) * 1000;
-    this.frames.push(frame);
-    this.elapsed += ms;
-    const loud = rms(frame) > Math.max(this.noise * 2.8, 450);
-    if (loud) { this.heard = true; this.quietMs = 0; } else if (this.heard) { this.quietMs += ms; }
+  async handle(samples, endedAt) {
+    const ms = (samples.length / SAMPLE_RATE) * 1000;
+    if (ms < MIN_SPEECH_MS) return;
+    // Was this said while Jarvis was waiting for an answer? (it started before the window closed)
+    const startedAt = endedAt - ms - 500;
+    const until = this.openUntil || this.closedAt || 0;
+    const open = until > 0 && startedAt <= until;
 
-    if (!this.heard && this.elapsed >= this.noSpeechMs) return this.finish(false);
-    if (this.heard && this.quietMs >= END_SILENCE_MS) return this.finish(true);
-    if (this.elapsed >= MAX_UTTERANCE_MS) return this.finish(this.heard);
-  }
-
-  // On the Mac first; ElevenLabs only if the on-device model isn't there.
-  async toText(frames) {
-    if (this.localStt) {
-      await new Promise((r) => setImmediate(r));   // let the "thinking" state go out first
-      return this.localStt(frames);
+    let text = "";
+    try { text = await this.toText(samples); } catch (e) {
+      if (open) this.o.onState("idle", "Couldn't understand");
+      throw e;
     }
-    return transcribe(toWav(frames), this.o.elevenlabsKey, this.o.sttModel);
-  }
+    if (!text) return;
+    const named = HAS_NAME.test(text);
+    if (this.o.onHeard) this.o.onHeard(text);
+    if (!named && !open) return;            // just talking, not to Jarvis
 
-  finish(gotSpeech) {
-    const frames = this.frames;
-    this.frames = [];
-    this.mode = "wake";
-    this.cooldownMs = COOLDOWN_MS;       // measured in audio, not clock time
-    // A follow-up nobody answered just ends quietly.
-    if (!gotSpeech) { this.o.onState("idle", this.followUp ? "" : "Didn't catch anything"); return; }
+    const request = named ? stripName(text) : text;
+    if (named && wordCount(request) < 2 && !/^(stop|cancel|dashboard|home|thanks|yes|no)\b/i.test(request)) {
+      // "Hey Jarvis" on its own: wake up and wait for the request.
+      this.o.onWake(false);
+      if (this.captureOnWake) this.listenNow({ noSpeechMs: LISTEN_MS });
+      return;
+    }
+    this.openUntil = 0; this.closedAt = 0;
+    if (named) this.o.onWake(true);
     this.o.onState("thinking");
-    this.toText(frames)
-      .then((text) => {
-        if (text) this.o.onTranscript(text);
-        else this.o.onState("idle", "Didn't catch that");
-      })
-      .catch((e) => { this.o.onState("idle", "Couldn't understand"); this.o.onError(e); });
+    this.o.onTranscript(request);
   }
 }
 
-module.exports = { Voice, toWav, transcribe };
+module.exports = { Voice, toWav, transcribe, stripName, HAS_NAME };

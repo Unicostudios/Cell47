@@ -37,16 +37,16 @@
 
   <div class="field">
     <label for="el">ElevenLabs API key (optional)</label>
-    <p>Not needed: “Hey Jarvis” and turning what you say into text both run on your Mac, free. The key is only a backup if the on-device speech model is missing.</p>
+    <p>Not needed: listening and turning what you say into text both run on your Mac, free. The key is only a backup if the on-device speech model is missing.</p>
     <input id="el" type="password" placeholder="sk_…" autocomplete="off">
     <span class="saved" id="el-saved" hidden>Saved ✓ (paste a new one to replace it)</span>
   </div>
 
   <div class="field">
-    <div class="row"><label for="sens">Wake word sensitivity</label><input id="sens" type="range" min="0.2" max="0.8" step="0.05"></div>
+    <div class="row"><label for="sens">Listening sensitivity</label><input id="sens" type="range" min="0.2" max="0.8" step="0.05"></div>
     <p>Higher hears you more easily but may wake by mistake. Default is in the middle.</p>
     <div class="checks">
-      <label><input type="checkbox" id="listening"> Listen for “Hey Jarvis”</label>
+      <label><input type="checkbox" id="listening"> Always listening for “Jarvis”</label>
       <label><input type="checkbox" id="login"> Start Jarvis when my Mac starts</label>
     </div>
   </div>
@@ -68,7 +68,7 @@
       $("el").value = "";
       return jarvisSettings.get().then((s) => {
         $("el-saved").hidden = !s.hasElevenlabs;
-        $("status").textContent = !s.listening ? "Saved. Listening is off." : "Saved. Say “Hey Jarvis” to try it.";
+        $("status").textContent = !s.listening ? "Saved. Listening is off." : "Saved. Say “Jarvis, what's on today?” to try it.";
       });
     });
   });
