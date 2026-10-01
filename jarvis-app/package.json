@@ -1,7 +1,7 @@
 {
   "name": "jarvis",
   "productName": "Jarvis",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "description": "Jarvis for the Ops Desk dashboard: its own Mac window, always-on \"Jarvis\" listening, speech-to-text and voice on-device (free).",
   "main": "main.js",
   "private": true,

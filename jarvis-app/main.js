@@ -137,7 +137,8 @@ function createWindow() {
   wc.on("did-frame-finish-load", () => {
     setTimeout(async () => {
       const lv = !speaker || speaker.failed ? "'off'" : String(!!speaker.ready);
-      const ok = await inDash("window.__inJarvisApp = true; window.__jarvisLocalVoice = " + lv + "; window.jarvisAppReady && jarvisAppReady();" +
+      const ok = await inDash("window.__inJarvisApp = true; window.__jarvisAppVersion = " + JSON.stringify(app.getVersion()) +
+        "; window.__jarvisLocalVoice = " + lv + "; window.jarvisAppReady && jarvisAppReady();" +
         " window.JarvisHome && JarvisHome.problem(" + JSON.stringify(problemText) + ");");
       if (ok) setTimeout(hideLoader, 1500);   // backup, in case the page's own "ready" didn't arrive
     }, 400);
