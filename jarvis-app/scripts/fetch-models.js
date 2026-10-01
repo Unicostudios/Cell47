@@ -18,6 +18,9 @@ const DIR = path.join(__dirname, "..", "models");
 // On-device speech-to-text model (Moonshine base, English).
 const STT = "sherpa-onnx-moonshine-base-en-int8";
 const STT_FILES = ["preprocess.onnx", "encode.int8.onnx", "uncached_decode.int8.onnx", "cached_decode.int8.onnx", "tokens.txt"];
+// Jarvis's speaking voice: Kokoro v1.0 (voice "Sarah"), about 350 MB, one time.
+const TTS = "kokoro-multi-lang-v1_0";
+const TTS_FILES = ["model.onnx", "voices.bin", "tokens.txt", "lexicon-us-en.txt", "espeak-ng-data"];
 
 (async () => {
   fs.mkdirSync(DIR, { recursive: true });
@@ -34,6 +37,7 @@ const STT_FILES = ["preprocess.onnx", "encode.int8.onnx", "uncached_decode.int8.
   }
   console.log("Hey Jarvis models ready.");
   await fetchSpeechModel();
+  await fetchVoiceModel();
 })().catch((e) => { console.error("Couldn't download the Jarvis models: " + e.message); process.exit(1); });
 
 async function fetchSpeechModel() {
@@ -48,6 +52,22 @@ async function fetchSpeechModel() {
   execFileSync("tar", ["-xjf", archive, "-C", tmp]);
   fs.mkdirSync(dir, { recursive: true });
   for (const f of STT_FILES) fs.copyFileSync(path.join(tmp, STT, f), path.join(dir, f));
+  fs.rmSync(tmp, { recursive: true, force: true });
+  console.log("done");
+}
+
+async function fetchVoiceModel() {
+  const dir = path.join(DIR, "tts");
+  if (TTS_FILES.every((f) => fs.existsSync(path.join(dir, f)))) return console.log("Voice model ready.");
+  process.stdout.write("Downloading Jarvis's voice (about 350 MB, one time) … ");
+  const res = await fetch("https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/" + TTS + ".tar.bz2");
+  if (!res.ok) throw new Error("voice model: HTTP " + res.status);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "jarvis-tts-"));
+  const archive = path.join(tmp, "tts.tar.bz2");
+  fs.writeFileSync(archive, Buffer.from(await res.arrayBuffer()));
+  execFileSync("tar", ["-xjf", archive, "-C", tmp]);
+  fs.mkdirSync(dir, { recursive: true });
+  for (const f of TTS_FILES) fs.cpSync(path.join(tmp, TTS, f), path.join(dir, f), { recursive: true });
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log("done");
 }

@@ -31,6 +31,7 @@
       "main.js",
       "voice.js",
       "voice-worker.js",
+      "tts-worker.js",
       "wakeword.js",
       "settings.html",
       "settings-preload.js",
@@ -43,7 +44,8 @@
       "node_modules/onnxruntime-node/**",
       "node_modules/sherpa-onnx-node/**",
       "node_modules/sherpa-onnx-darwin-arm64/**",
-      "models/stt/**"
+      "models/stt/**",
+      "models/tts/**"
     ],
     "mac": {
       "target": [

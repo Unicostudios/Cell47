@@ -17,6 +17,7 @@ const {
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const { spawn } = require("child_process");
 
 const DASHBOARD_URL = "https://claude.ai/artifact/GgHwacYvD1hZgNT9EjZAk5";
 const PARTITION = "persist:jarvis";
@@ -116,10 +117,17 @@ function createWindow() {
 
   // Tell the dashboard it's running inside the app (hint text, silent wake).
   wc.on("did-frame-finish-load", () => {
-    setTimeout(() => inDash("window.__inJarvisApp = true; window.jarvisAppReady && jarvisAppReady();"), 400);
+    setTimeout(() => inDash("window.__inJarvisApp = true; window.__jarvisLocalVoice = " + !!(speaker && speaker.ready) + "; window.jarvisAppReady && jarvisAppReady();"), 400);
     measureCrop();
   });
   wc.on("did-finish-load", measureCrop);
+  // The dashboard hands speech to the app as console lines ("[jarvis-say]{…}").
+  wc.on("console-message", (e) => {
+    const text = e && e.message;
+    if (typeof text === "string" && text.startsWith("[jarvis-say]") && speaker) {
+      try { speaker.handle(JSON.parse(text.slice(12))); } catch (err) {}
+    }
+  });
   wc.on("did-navigate", () => { cropTop = 0; layout(); });   // e.g. the sign-in page: show all of it
   setInterval(measureCrop, 2000);
 
@@ -201,6 +209,72 @@ function showWindow() {
   win.show();
   goFullScreen();
   app.focus({ steal: true });
+}
+
+// ----------------------------------------------------------- speaking ----
+// Jarvis's voice ("Sarah") is made on the Mac in tts-worker.js and played with
+// macOS's afplay, one chunk at a time, while the next chunk is being made.
+const PLAYER = process.env.JARVIS_PLAYER || (process.platform === "darwin" ? "afplay" : "aplay");
+let speaker = null;
+class Speaker {
+  constructor() { this.gen = 0; this.ready = false; this.items = []; this.player = null; }
+  start() {
+    const proc = this.proc = utilityProcess.fork(path.join(__dirname, "tts-worker.js"), [], { serviceName: "Jarvis Speech" });
+    proc.on("message", (m) => {
+      if (m.type === "ready") { this.ready = true; inDash("window.__jarvisLocalVoice = true"); }
+      else if (m.type === "initError") console.error("[jarvis] voice:", m.message);
+      else if (m.type === "audio" || m.type === "sayError") {
+        const it = m.gen === this.gen && this.items.find((x) => x.id === m.id);
+        if (!it) { if (m.file) fs.rm(m.file, { force: true }, () => {}); return; }
+        if (m.type === "audio") it.file = m.file; else it.error = m.message || "error";
+        this.pump();
+      }
+    });
+    proc.on("exit", () => {
+      if (this.proc !== proc) return;
+      this.ready = false; this.proc = null;
+      inDash("window.__jarvisLocalVoice = false");
+      this.stop();
+    });
+    proc.postMessage({ type: "init", modelDir: path.join(__dirname, "models") });
+  }
+  handle(m) {
+    if (m.op === "say" && this.proc && this.ready) {
+      this.items.push({ id: Number(m.id), gen: this.gen });
+      this.proc.postMessage({ type: "say", id: Number(m.id), gen: this.gen, text: String(m.text || "").slice(0, 2000) });
+    } else if (m.op === "say") {
+      this.report("done", m.id);
+    } else if (m.op === "stop") {
+      this.stop();
+    }
+  }
+  stop() {
+    this.gen++;
+    if (this.proc) this.proc.postMessage({ type: "gen", gen: this.gen });
+    for (const it of this.items) if (it.file) fs.rm(it.file, { force: true }, () => {});
+    this.items = [];
+    if (this.player) { const p = this.player; this.player = null; try { p.kill(); } catch (e) {} }
+  }
+  pump() {
+    if (this.player) return;
+    const it = this.items[0];
+    if (!it || (!it.file && !it.error)) return;
+    this.items.shift();
+    if (it.error) { this.report("done", it.id); return this.pump(); }
+    this.report("start", it.id);
+    const p = this.player = spawn(PLAYER, [it.file], { stdio: "ignore" });
+    const finished = () => {
+      fs.rm(it.file, { force: true }, () => {});
+      if (this.player !== p) return;            // stopped: the dashboard already moved on
+      this.player = null;
+      this.report("done", it.id);
+      this.pump();
+    };
+    p.on("exit", finished);
+    p.on("error", finished);
+  }
+  report(ev, id) { inDash("window.jarvisLocalSpeech && jarvisLocalSpeech(" + JSON.stringify(ev) + "," + Number(id) + ")"); }
+  quit() { this.stop(); if (this.proc) { const p = this.proc; this.proc = null; try { p.kill(); } catch (e) {} } }
 }
 
 // ----------------------------------------------------------------- voice --
@@ -373,7 +447,7 @@ ipcMain.handle("settings:save", (e, s) => {
 // ------------------------------------------------------------------ boot --
 app.on("second-instance", () => reveal(true));
 app.on("activate", () => reveal(true));
-app.on("before-quit", () => { quitting = true; stopVoice(); });
+app.on("before-quit", () => { quitting = true; stopVoice(); if (speaker) speaker.quit(); });
 
 app.whenReady().then(async () => {
   if (process.platform === "darwin") {
@@ -383,6 +457,8 @@ app.whenReady().then(async () => {
   }
   tray = new Tray(trayIcon());
   tray.on("click", () => tray.popUpContextMenu());
+  speaker = new Speaker();
+  speaker.start();
   createWindow();
   applyLogin();
   globalShortcut.register(HOTKEY, talkNow);
