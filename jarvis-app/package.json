@@ -9,7 +9,8 @@
     "postinstall": "node scripts/fetch-models.js",
     "start": "electron .",
     "app": "electron-builder --mac --dir --arm64",
-    "check": "node -e \"require('./voice.js'); console.log('voice module OK')\""
+    "check": "node -e \"require('./voice.js'); console.log('voice module OK')\"",
+    "doctor": "node scripts/doctor.js"
   },
   "dependencies": {
     "@picovoice/pvrecorder-node": "1.2.9",

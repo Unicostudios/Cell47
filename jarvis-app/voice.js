@@ -20,18 +20,43 @@ const MIN_SPEECH_MS = 300;         // shorter blips (a cough, a click) are ignor
 const LISTEN_MS = 7000;            // after "Hey Jarvis" on its own: how long to wait for the request
 const ECHO_TAIL_MS = 350;          // ignore the mic this long after Jarvis stops talking
 
-// "Jarvis" as the speech model may spell it.
-const NAME = "(?:jarvis|jarviss|jarvi|jervis|javis|jarves|jarvus|jarvas|jarvys|garvis|jarvice)";
-const HAS_NAME = new RegExp("\\b" + NAME + "\\b", "i");
-const LEAD = new RegExp("^\\W*(?:(?:hey|hi|hello|ok|okay|yo)\\W+)?" + NAME + "\\b[\\s,.!?:;-]*", "i");
-const TAIL = new RegExp("[\\s,]*(?:hey\\W+)?" + NAME + "\\W*$", "i");
-const MID = new RegExp(",?\\s*\\b" + NAME + "\\b,?", "ig");
+// Finding "Jarvis" in what the speech model wrote. Accents and fast speech come
+// out as "Javis", "Jauvis", "Jervis", "Charvis", "Jaw visa"…, so match loosely:
+// a word (or two words run together) that starts with a J/G/Ch sound and is
+// within two letters of "jarvis". "Travis" counts only at the start.
+function lev(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function looksLikeJarvis(w) {
+  return w.length >= 4 && w.length <= 8 && /^(j|g|ch|dj|zh|z)/.test(w) && lev(w, "jarvis") <= 2;
+}
+const CALL = /^(hey|hi|hello|ok|okay|yo|oi|a|the)$/i;
+/** Where "Jarvis" (plus a "hey" before it) is in the text, or null. */
+function nameSpan(text) {
+  const toks = [];
+  String(text || "").replace(/[A-Za-z']+/g, (w, at) => { toks.push({ w: w.toLowerCase().replace(/'/g, ""), at, end: at + w.length }); return w; });
+  for (let i = 0; i < toks.length; i++) {
+    let hit = looksLikeJarvis(toks[i].w) ? 1 : 0;
+    if (!hit && i + 1 < toks.length && looksLikeJarvis(toks[i].w + toks[i + 1].w)) hit = 2;
+    if (!hit && toks[i].w === "travis" && (i === 0 || (i === 1 && CALL.test(toks[0].w)))) hit = 1;
+    if (!hit) continue;
+    const from = i > 0 && CALL.test(toks[i - 1].w) ? i - 1 : i;
+    return { start: toks[from].at, end: toks[i + hit - 1].end };
+  }
+  return null;
+}
+const HAS_NAME = { test: (t) => !!nameSpan(t) };
 
 /** "Hey Jarvis, add milk." → "add milk." ; "What's next, Jarvis?" → "What's next?" */
 function stripName(text) {
-  let t = String(text || "").trim();
-  t = t.replace(LEAD, "").replace(TAIL, (m) => (/[?!.]$/.test(m.trim()) ? m.trim().slice(-1) : "")).replace(MID, " ");
-  return t.replace(/\s+/g, " ").replace(/^\W+(?=\w)/, "").trim();
+  const t = String(text || "").trim(), sp = nameSpan(t);
+  if (!sp) return t;
+  const out = (t.slice(0, sp.start).replace(/[\s,]+$/, "") + " " + t.slice(sp.end).replace(/^[\s,.!:;-]+/, "")).trim();
+  return out.replace(/\s+/g, " ").replace(/\s+([?!.,])/g, "$1").replace(/^\W+(?=\w)/, "").trim();
 }
 function wordCount(t) { return (String(t).match(/[A-Za-z0-9']+/g) || []).length; }
 

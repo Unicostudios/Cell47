@@ -137,7 +137,8 @@ function createWindow() {
   wc.on("did-frame-finish-load", () => {
     setTimeout(async () => {
       const lv = !speaker || speaker.failed ? "'off'" : String(!!speaker.ready);
-      const ok = await inDash("window.__inJarvisApp = true; window.__jarvisLocalVoice = " + lv + "; window.jarvisAppReady && jarvisAppReady();");
+      const ok = await inDash("window.__inJarvisApp = true; window.__jarvisLocalVoice = " + lv + "; window.jarvisAppReady && jarvisAppReady();" +
+        " window.JarvisHome && JarvisHome.problem(" + JSON.stringify(problemText) + ");");
       if (ok) setTimeout(hideLoader, 1500);   // backup, in case the page's own "ready" didn't arrive
     }, 400);
     measureCrop();
@@ -266,6 +267,7 @@ class Speaker {
         console.error("[jarvis] voice:", m.message); log("voice model: " + m.message);
         this.failed = true;
         inDash("window.__jarvisLocalVoice = 'off'; window.jarvisLocalVoiceReady && jarvisLocalVoiceReady()");
+        if (!problemText) showProblem("Sarah's voice didn't load, so Jarvis is using the backup voice. Run: npm run doctor");
       }
       else if (m.type === "audio" || m.type === "sayError") {
         const it = m.gen === this.gen && this.items.find((x) => x.id === m.id);
@@ -352,7 +354,7 @@ function startVoice() {
       if (reveal(true)) listenForFollowUp();
     },
     onLevel: (v) => toDashFast("window.jarvisLevel && jarvisLevel(" + (Math.round(v * 100) / 100) + ")"),
-    onHeard: (text) => log("heard: " + text),
+    onHeard: (text) => { log("heard: " + text); toDashFast("window.JarvisHome && JarvisHome.heard(" + JSON.stringify(text) + ")"); },
     onState: voiceState,
     onTranscript: async (text) => {
       log("command: " + text);
@@ -365,7 +367,8 @@ function startVoice() {
   });
   const v = voice;
   syncWakeMode();
-  Promise.resolve().then(() => v.start()).then(() => updateTray("idle"), (e) => { if (voice === v) voice = null; fail(e); });
+  Promise.resolve().then(() => v.start()).then(() => { updateTray("idle"); log("listening started"); if (/listen|mic/i.test(problemText)) showProblem(""); },
+    (e) => { if (voice === v) voice = null; fail(e); });
 }
 function stopVoice() { followUpRun++; if (voice) { voice.stop(); voice = null; } }
 
@@ -441,6 +444,12 @@ function log(line) {
     fs.appendFileSync(f, new Date().toISOString() + "  " + line + "\n");
   } catch (e) {}
 }
+// A problem shown on the home screen (under the form) until it's fixed.
+let problemText = "";
+function showProblem(text) {
+  problemText = text || "";
+  inDash("window.JarvisHome && JarvisHome.problem(" + JSON.stringify(problemText) + ")");
+}
 function fail(e) {
   const msg = (e && e.message) || String(e);
   console.error("[jarvis]", msg);
@@ -451,6 +460,7 @@ function fail(e) {
   else if (/device|audio|recorder|microphone/i.test(msg)) hint = "Couldn't open the microphone. Allow Jarvis in System Settings → Privacy & Security → Microphone.";
   notify("Jarvis", hint);
   updateTray("error");
+  if (!voice) showProblem("Can't listen: " + hint);
 }
 function notify(title, body) {
   try { new Notification({ title, body, silent: true }).show(); } catch (e) {}
