@@ -8,7 +8,7 @@ Jarvis is your Ops Desk dashboard as a Mac app. It gives you:
 - **A keyboard shortcut.** Press **⌥Space** to talk without saying "Jarvis".
 - **Sound that plays straight away.** The spoken greeting and replies don't need a click first.
 
-Everything voice runs on your Mac, free, with [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx): Silero VAD notices when you start and stop talking, [Moonshine](https://github.com/moonshine-ai/moonshine) turns each sentence into text (about 0.1 s), and Jarvis speaks with Kokoro's "Sarah" voice. Your voice never leaves the Mac, and nothing uses ElevenLabs credits. While Jarvis is talking it ignores the mic, so it can't hear itself. `npm install` downloads the models (about 650 MB, once). An ElevenLabs key is optional: it's only a backup if the speech-to-text model is missing, and it's stored encrypted with your macOS Keychain. Problems are written to `~/Library/Logs/Jarvis/jarvis.log`.
+Everything voice runs on your Mac, free, with [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx): Silero VAD notices when you start and stop talking, [Moonshine](https://github.com/moonshine-ai/moonshine) turns each sentence into text (about 0.1 s), and Jarvis speaks with Kokoro's "Sarah" voice. Your voice never leaves the Mac, and nothing uses ElevenLabs credits. While Jarvis is talking it ignores the mic, so it can't hear itself. `npm install` downloads the models (about 650 MB, once). The built app reads them from `~/Library/Application Support/Jarvis/models` (they're too big for macOS's signing tool inside the app); `scripts/update.sh` copies them there. An ElevenLabs key is optional: it's only a backup if the speech-to-text model is missing, and it's stored encrypted with your macOS Keychain. Problems are written to `~/Library/Logs/Jarvis/jarvis.log`.
 
 You need a Mac with Apple Silicon (M1 or later).
 
@@ -16,15 +16,13 @@ You need a Mac with Apple Silicon (M1 or later).
 
 You need Node.js, which you already have from the Fitbit setup.
 
+Download the repo ZIP, unzip it in Downloads, then run:
+
 ```bash
-cd ~/Cell47
-git pull
-cd jarvis-app
-npm install
-npm run app
+bash ~/Downloads/Cell47-claude-fitbit-sense-clock-face-k7b4i1/jarvis-app/scripts/update.sh
 ```
 
-This builds `dist/mac-arm64/Jarvis.app`. Drag the app into your **Applications** folder and open it.
+It copies the files to `~/Cell47/jarvis-app`, installs, builds Jarvis.app, puts it in Applications, checks everything (`npm run doctor`) and opens it.
 
 The first time you open it:
 

@@ -253,6 +253,19 @@ function showWindow() {
   app.focus({ steal: true });
 }
 
+// The voice models (~650 MB) are kept outside the app (macOS's signing tool can't
+// handle files that big inside it): in ~/Library/Application Support/Jarvis/models,
+// where scripts/update.sh puts them. When running from the folder (npm start),
+// the folder's own models/ is used.
+function modelDir() {
+  const candidates = [
+    path.join(__dirname, "models"),
+    path.join(app.getPath("userData"), "models"),
+    path.join(app.getPath("home"), "Cell47", "jarvis-app", "models")
+  ];
+  return candidates.find((d) => fs.existsSync(path.join(d, "vad", "silero_vad.onnx"))) || candidates[1];
+}
+
 // ----------------------------------------------------------- speaking ----
 // Jarvis's voice ("Sarah") is made on the Mac in tts-worker.js and played with
 // macOS's afplay, one chunk at a time, while the next chunk is being made.
@@ -284,7 +297,7 @@ class Speaker {
       inDash("window.__jarvisLocalVoice = 'off'; window.jarvisLocalVoiceReady && jarvisLocalVoiceReady()");
       this.stop();
     });
-    proc.postMessage({ type: "init", modelDir: path.join(__dirname, "models") });
+    proc.postMessage({ type: "init", modelDir: modelDir() });
   }
   handle(m) {
     if (m.op === "say" && this.proc && this.ready) {
@@ -345,7 +358,7 @@ function startVoice() {
   const c = readConfig(), k = keys();
   if (!c.listening) return updateTray();
   voice = new VoiceProcess({
-    modelDir: path.join(__dirname, "models"), elevenlabsKey: k.elevenlabs,
+    modelDir: modelDir(), elevenlabsKey: k.elevenlabs,
     sensitivity: Number(c.sensitivity) || 0.5, sttModel: c.sttModel,
     onWake: (hasRequest) => {
       // "Hey Jarvis, <request>": just open (if closed) and do it.

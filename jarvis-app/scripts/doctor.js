@@ -75,11 +75,16 @@ try {
 } catch (e) { bad("microphone: " + e.message, "allow Terminal (and Jarvis) under System Settings → Privacy & Security → Microphone"); }
 
 // 5. the installed app
-const app = "/Applications/Jarvis.app/Contents/Resources/app.asar.unpacked/models";
 if (process.platform === "darwin") {
-  if (!fs.existsSync("/Applications/Jarvis.app")) bad("Jarvis.app isn't in Applications", "run: npm run app, then copy dist/mac-arm64/Jarvis.app to Applications");
-  else if (!fs.existsSync(path.join(app, "tts")) || !fs.existsSync(path.join(app, "vad"))) bad("the Jarvis.app in Applications is an older build", "run: npm run app && rm -rf /Applications/Jarvis.app && cp -R dist/mac-arm64/Jarvis.app /Applications/");
-  else ok("Jarvis.app in Applications is the new build");
+  const want = require(path.join(ROOT, "package.json")).version;
+  let have = "";
+  try { have = require("child_process").execFileSync("defaults", ["read", "/Applications/Jarvis.app/Contents/Info", "CFBundleShortVersionString"]).toString().trim(); } catch (e) {}
+  if (!have) bad("Jarvis.app isn't in Applications", "run: bash scripts/update.sh");
+  else if (have !== want) bad("Jarvis.app in Applications is version " + have + ", this folder is " + want, "run: bash scripts/update.sh");
+  else ok("Jarvis.app in Applications is version " + have);
+  const shared = path.join(os.homedir(), "Library", "Application Support", "Jarvis", "models", "tts", "model.onnx");
+  if (fs.existsSync(shared)) ok("voice models are where the app looks for them");
+  else bad("the app's copy of the voice models is missing", "run: bash scripts/update.sh");
 }
 
 // 6. log

@@ -1,7 +1,7 @@
 {
   "name": "jarvis",
   "productName": "Jarvis",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Jarvis for the Ops Desk dashboard: its own Mac window, always-on \"Jarvis\" listening, speech-to-text and voice on-device (free).",
   "main": "main.js",
   "private": true,
@@ -36,16 +36,12 @@
       "settings.html",
       "settings-preload.js",
       "assets/**",
-      "models/**",
       "package.json"
     ],
     "asarUnpack": [
       "node_modules/@picovoice/**",
       "node_modules/sherpa-onnx-node/**",
-      "node_modules/sherpa-onnx-darwin-arm64/**",
-      "models/stt/**",
-      "models/tts/**",
-      "models/vad/**"
+      "node_modules/sherpa-onnx-darwin-arm64/**"
     ],
     "mac": {
       "target": [

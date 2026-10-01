@@ -23,15 +23,18 @@ cd "$DEST"
 step "3/5  Installing (downloads the voice models the first time, ~650 MB)"
 npm install || die "npm install failed — scroll up for the reason, or send it to Claude."
 
-step "4/5  Checking the voice engine"
-npm run doctor || printf "\n(Doctor found a problem above — Jarvis will still be built so you can try it.)\n"
-
-step "5/5  Building and installing Jarvis.app"
+step "4/5  Building and installing Jarvis.app"
+MODELS="$HOME/Library/Application Support/Jarvis/models"
+mkdir -p "$MODELS"
+rsync -a --delete "$DEST/models/" "$MODELS/" || die "Couldn't copy the voice models."
 npm run app || die "The build failed — scroll up for the reason, or send it to Claude."
 rm -rf /Applications/Jarvis.app
 cp -R dist/mac-arm64/Jarvis.app /Applications/ || die "Couldn't copy Jarvis.app into Applications."
 touch /Applications/Jarvis.app
 killall Dock >/dev/null 2>&1 || true   # refresh the Dock icon
+
+step "5/5  Checking everything"
+npm run doctor || printf "\n(The check above found a problem — send a screenshot of it to Claude.)\n"
 open /Applications/Jarvis.app
 
 printf "\n\033[32m✓ Jarvis $(node -p "require('./package.json').version") is installed and open.\033[0m\n\n"
